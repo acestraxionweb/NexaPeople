@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useApp } from "@/lib/app-context";
 import { tenant } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -16,20 +15,16 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const { apiKey, setApiKey, tenantName, setTenantName } = useApp();
   const queryClient = useQueryClient();
 
   const { data: ws } = useQuery({
     queryKey: ["workspace"],
-    queryFn: () => tenant.workspace(apiKey),
-    enabled: !!apiKey,
+    queryFn: () => tenant.workspace(),
   });
 
   const [company, setCompany] = useState("");
   const [slug, setSlug] = useState("");
   const [email, setEmail] = useState("");
-  const [localApiKey, setLocalApiKey] = useState("");
-
   useEffect(() => {
     if (ws) {
       setCompany(ws.companyName ?? "");
@@ -38,14 +33,9 @@ function SettingsPage() {
     }
   }, [ws]);
 
-  useEffect(() => {
-    setLocalApiKey(apiKey);
-  }, [apiKey]);
-
   const saveMutation = useMutation({
-    mutationFn: () => tenant.updateWorkspace(apiKey, { companyName: company }),
+    mutationFn: () => tenant.updateWorkspace({ companyName: company }),
     onSuccess: () => {
-      setTenantName(company);
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
       toast.success("Settings saved");
     },
@@ -78,32 +68,6 @@ function SettingsPage() {
               <Label>Contact email</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled />
             </div>
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-border bg-card p-6">
-          <h2 className="text-sm font-semibold">API Connection</h2>
-          <div className="mt-4 space-y-4">
-            <div className="space-y-2">
-              <Label>API Key (bot token)</Label>
-              <Input
-                type="password"
-                value={localApiKey}
-                onChange={(e) => setLocalApiKey(e.target.value)}
-                placeholder="Enter your bot token"
-              />
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setApiKey(localApiKey);
-                queryClient.invalidateQueries();
-                toast.success("API key updated");
-              }}
-            >
-              Apply key
-            </Button>
           </div>
         </section>
 

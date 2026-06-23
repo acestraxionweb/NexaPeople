@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { useApp } from "@/lib/app-context";
 import { tenant } from "@/lib/api";
 
 export const Route = createFileRoute("/logs")({
@@ -17,11 +16,9 @@ const statusTone: Record<string, string> = {
 };
 
 function LogsPage() {
-  const { apiKey } = useApp();
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-logs"],
-    queryFn: () => tenant.logs(apiKey),
-    enabled: !!apiKey,
+    queryFn: () => tenant.logs(),
   });
 
   return (

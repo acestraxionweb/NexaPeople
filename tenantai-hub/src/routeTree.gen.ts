@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsageRouteImport } from './routes/usage'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LogsRouteImport } from './routes/logs'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ChatbotRouteImport } from './routes/chatbot'
 import { Route as ApiKeysRouteImport } from './routes/api-keys'
 import { Route as IndexRouteImport } from './routes/index'
@@ -32,6 +33,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const LogsRoute = LogsRouteImport.update({
   id: '/logs',
   path: '/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatbotRoute = ChatbotRouteImport.update({
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api-keys': typeof ApiKeysRoute
   '/chatbot': typeof ChatbotRoute
+  '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/settings': typeof SettingsRoute
   '/usage': typeof UsageRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api-keys': typeof ApiKeysRoute
   '/chatbot': typeof ChatbotRoute
+  '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/settings': typeof SettingsRoute
   '/usage': typeof UsageRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api-keys': typeof ApiKeysRoute
   '/chatbot': typeof ChatbotRoute
+  '/login': typeof LoginRoute
   '/logs': typeof LogsRoute
   '/settings': typeof SettingsRoute
   '/usage': typeof UsageRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api-keys'
     | '/chatbot'
+    | '/login'
     | '/logs'
     | '/settings'
     | '/usage'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api-keys'
     | '/chatbot'
+    | '/login'
     | '/logs'
     | '/settings'
     | '/usage'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api-keys'
     | '/chatbot'
+    | '/login'
     | '/logs'
     | '/settings'
     | '/usage'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiKeysRoute: typeof ApiKeysRoute
   ChatbotRoute: typeof ChatbotRoute
+  LoginRoute: typeof LoginRoute
   LogsRoute: typeof LogsRoute
   SettingsRoute: typeof SettingsRoute
   UsageRoute: typeof UsageRoute
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/logs'
       fullPath: '/logs'
       preLoaderRoute: typeof LogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chatbot': {
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiKeysRoute: ApiKeysRoute,
   ChatbotRoute: ChatbotRoute,
+  LoginRoute: LoginRoute,
   LogsRoute: LogsRoute,
   SettingsRoute: SettingsRoute,
   UsageRoute: UsageRoute,

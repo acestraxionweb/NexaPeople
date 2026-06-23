@@ -41,6 +41,7 @@ function TenantsPage() {
   const [company, setCompany] = useState("");
   const [token, setToken] = useState("");
   const [plan, setPlan] = useState("starter");
+  const [adminEmail, setAdminEmail] = useState("");
   const [result, setResult] = useState<Record<string, string> | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -49,7 +50,7 @@ function TenantsPage() {
   });
 
   const provision = useMutation({
-    mutationFn: () => admin.provision({ companyName: company, telegramBotToken: token, plan }),
+    mutationFn: () => admin.provision({ companyName: company, telegramBotToken: token, plan, adminEmail }),
     onSuccess: (d) => {
       setResult(d);
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
@@ -61,6 +62,7 @@ function TenantsPage() {
   const reset = () => {
     setCompany("");
     setToken("");
+    setAdminEmail("");
     setPlan("starter");
     setResult(null);
   };
@@ -116,6 +118,10 @@ function TenantsPage() {
                 <div className="space-y-2">
                   <Label>Telegram bot token</Label>
                   <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="123456:ABC-DEF..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Admin email</Label>
+                  <Input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="admin@company.com" />
                 </div>
                 <div className="space-y-2">
                   <Label>Plan</Label>

@@ -3,7 +3,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from jose import JWTError, jwt
+from sqlalchemy import text
 
+from app.config import settings
 from app.database import SessionLocal
 from app.litellm_admin_service import key_hash, key_info, spend_keys, spend_logs, global_spend
 from app.models import Tenant
@@ -25,6 +28,51 @@ def _get_tenant_from_token(x_api_key: str = Header(...)) -> Tenant:
         db.close()
 
 
+def _resolve_tenant_from_jwt(token: str) -> Tenant:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    tenant_id = payload.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="User is not associated with a tenant")
+    db = SessionLocal()
+    try:
+        tenant = db.query(Tenant).filter(
+            Tenant.id == tenant_id,
+            Tenant.status == "active",
+        ).first()
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        return tenant
+    finally:
+        db.close()
+
+
+def _get_tenant_combined(
+    authorization: str = Header("", alias="Authorization"),
+    x_api_key: str = Header("", alias="x-api-key"),
+) -> Tenant:
+    if authorization.startswith("Bearer "):
+        return _resolve_tenant_from_jwt(authorization[7:])
+    if x_api_key:
+        return _get_tenant_from_token(x_api_key=x_api_key)
+    raise HTTPException(status_code=401, detail="No authentication provided")
+
+
+def _require_admin(authorization: str = Header("", alias="Authorization")) -> dict:
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+    token = authorization[7:]
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return payload
+
+
 def _tenant_logs(tenant, days_back: int = 7):
     if not tenant.litellm_virtual_key:
         return []
@@ -37,7 +85,7 @@ def _tenant_logs(tenant, days_back: int = 7):
 
 
 @router.get("/tenant/summary")
-def tenant_summary(tenant: Tenant = Depends(_get_tenant_from_token)):
+def tenant_summary(tenant: Tenant = Depends(_get_tenant_combined)):
     logs = _tenant_logs(tenant, days_back=30)
     total_req = len(logs)
     total_tok = sum(e.get("total_tokens", 0) for e in logs)
@@ -63,7 +111,7 @@ def tenant_summary(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.get("/tenant/usage")
-def tenant_usage(tenant: Tenant = Depends(_get_tenant_from_token)):
+def tenant_usage(tenant: Tenant = Depends(_get_tenant_combined)):
     logs = _tenant_logs(tenant, days_back=30)
     by_date = defaultdict(lambda: {"requests": 0, "tokens": 0, "cost": 0.0})
     for e in logs:
@@ -84,7 +132,7 @@ def tenant_usage(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.get("/tenant/workspace")
-def tenant_workspace(tenant: Tenant = Depends(_get_tenant_from_token)):
+def tenant_workspace(tenant: Tenant = Depends(_get_tenant_combined)):
     return {
         "companyName": tenant.company_name,
         "slug": tenant.pinecone_namespace,
@@ -97,7 +145,7 @@ def tenant_workspace(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.put("/tenant/workspace")
-def update_workspace(body: dict, tenant: Tenant = Depends(_get_tenant_from_token)):
+def update_workspace(body: dict, tenant: Tenant = Depends(_get_tenant_combined)):
     db = SessionLocal()
     try:
         t = db.query(Tenant).get(tenant.id)
@@ -110,7 +158,7 @@ def update_workspace(body: dict, tenant: Tenant = Depends(_get_tenant_from_token
 
 
 @router.get("/tenant/chatbot")
-def chatbot_config(tenant: Tenant = Depends(_get_tenant_from_token)):
+def chatbot_config(tenant: Tenant = Depends(_get_tenant_combined)):
     return {
         "model": "deepseek-v4-flash-free",
         "temperature": 0.7,
@@ -122,12 +170,12 @@ def chatbot_config(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.put("/tenant/chatbot")
-def update_chatbot(body: dict, tenant: Tenant = Depends(_get_tenant_from_token)):
+def update_chatbot(body: dict, tenant: Tenant = Depends(_get_tenant_combined)):
     return {"ok": True}
 
 
 @router.get("/tenant/keys")
-def tenant_keys(tenant: Tenant = Depends(_get_tenant_from_token)):
+def tenant_keys(tenant: Tenant = Depends(_get_tenant_combined)):
     keys_list = []
     if tenant.litellm_virtual_key:
         try:
@@ -155,7 +203,7 @@ def tenant_keys(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.get("/tenant/logs")
-def tenant_logs(tenant: Tenant = Depends(_get_tenant_from_token)):
+def tenant_logs(tenant: Tenant = Depends(_get_tenant_combined)):
     logs = _tenant_logs(tenant, days_back=7)
     return {
         "logs": [
@@ -175,7 +223,7 @@ def tenant_logs(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.get("/tenant/knowledge")
-def tenant_knowledge(tenant: Tenant = Depends(_get_tenant_from_token)):
+def tenant_knowledge(tenant: Tenant = Depends(_get_tenant_combined)):
     from app.services.pinecone_service import describe_index_stats
     stats = describe_index_stats()
     ns = stats.namespaces.get(tenant.pinecone_namespace)
@@ -197,7 +245,7 @@ def tenant_knowledge(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.get("/tenant/conversations")
-def tenant_conversations(tenant: Tenant = Depends(_get_tenant_from_token)):
+def tenant_conversations(tenant: Tenant = Depends(_get_tenant_combined)):
     logs = _tenant_logs(tenant, days_back=7)
     by_user = defaultdict(lambda: {"messages": 0, "lastMessage": "", "timestamp": ""})
     for e in logs:
@@ -231,7 +279,7 @@ def tenant_conversations(tenant: Tenant = Depends(_get_tenant_from_token)):
 
 
 @router.get("/admin/tenants")
-def admin_tenants():
+def admin_tenants(_admin: dict = Depends(_require_admin)):
     db = SessionLocal()
     try:
         tenants = db.query(Tenant).all()
@@ -261,7 +309,7 @@ def admin_tenants():
 
 
 @router.get("/admin/health")
-def admin_health():
+def admin_health(_admin: dict = Depends(_require_admin)):
     try:
         gs = global_spend()
     except Exception:
@@ -318,7 +366,7 @@ def admin_health():
 
 
 @router.get("/admin/audit")
-def admin_audit():
+def admin_audit(_admin: dict = Depends(_require_admin)):
     try:
         all_logs = spend_logs(start_date=(datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d"))
     except Exception:

@@ -8,6 +8,14 @@ class Settings(BaseSettings):
     pinecone_api_key: str = ""
     pinecone_index_name: str = "knowledge-base"
     pinecone_dimension: int = 384
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    jwt_secret: str = "change-me-to-a-random-secret"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 1440
+    frontend_url: str = "http://localhost:8080"
+    google_admin_emails: str = ""
 
     class Config:
         env_file = ".env"

@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { useApp } from "@/lib/app-context";
 import { tenant } from "@/lib/api";
 import { Copy, Plus, RotateCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,11 +12,9 @@ export const Route = createFileRoute("/api-keys")({
 });
 
 function ApiKeysPage() {
-  const { apiKey } = useApp();
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-keys"],
-    queryFn: () => tenant.keys(apiKey),
-    enabled: !!apiKey,
+    queryFn: () => tenant.keys(),
   });
 
   return (

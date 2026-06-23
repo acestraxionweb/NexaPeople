@@ -1,11 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.database import SessionLocal
 from app.litellm_admin_service import generate_key
-from app.models import Tenant
+from app.models import Tenant, TenantUser
+from app.routers.dashboard_api import _require_admin
 
 router = APIRouter(prefix="/api/admin")
 
@@ -14,6 +15,7 @@ class ProvisionRequest(BaseModel):
     companyName: str
     telegramBotToken: str
     plan: str = "starter"
+    adminEmail: str = ""
 
 
 class ProvisionResponse(BaseModel):
@@ -33,7 +35,7 @@ def _make_namespace(company: str) -> str:
 
 
 @router.post("/provision", response_model=ProvisionResponse)
-def provision(body: ProvisionRequest):
+def provision(body: ProvisionRequest, _admin: dict = Depends(_require_admin)):
     db = SessionLocal()
     try:
         existing = db.query(Tenant).filter(
@@ -59,6 +61,22 @@ def provision(body: ProvisionRequest):
         db.add(tenant)
         db.commit()
         db.refresh(tenant)
+
+        if body.adminEmail:
+            existing_user = db.query(TenantUser).filter(
+                TenantUser.email == body.adminEmail
+            ).first()
+            if existing_user:
+                existing_user.tenant_id = tenant.id
+                existing_user.role = "tenant"
+            else:
+                db.add(TenantUser(
+                    email=body.adminEmail,
+                    name=body.adminEmail.split("@")[0],
+                    tenant_id=tenant.id,
+                    role="tenant",
+                ))
+            db.commit()
 
         return ProvisionResponse(
             tenantId=str(tenant.id),

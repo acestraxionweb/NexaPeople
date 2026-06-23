@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
 
@@ -29,3 +29,17 @@ class Memory(Base):
     user_id = Column(String, nullable=False, index=True)
     fact = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class TenantUser(Base):
+    __tablename__ = "tenant_users"
+    __table_args__ = {"schema": "concierge"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String, nullable=True)
+    google_sub = Column(String, unique=True, nullable=True)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("concierge.tenants.id", ondelete="SET NULL"), nullable=True)
+    role = Column(String, nullable=False, default="tenant")
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    last_login = Column(DateTime(timezone=True), nullable=True)

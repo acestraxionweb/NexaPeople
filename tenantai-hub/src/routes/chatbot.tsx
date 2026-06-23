@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useApp } from "@/lib/app-context";
 import { tenant, uploadDocument } from "@/lib/api";
 import { FileText, Loader2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -25,7 +24,6 @@ export const Route = createFileRoute("/chatbot")({
 });
 
 function ChatbotPage() {
-  const { apiKey } = useApp();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -34,20 +32,17 @@ function ChatbotPage() {
 
   const { data: config } = useQuery({
     queryKey: ["chatbot-config"],
-    queryFn: () => tenant.chatbot(apiKey),
-    enabled: !!apiKey,
+    queryFn: () => tenant.chatbot(),
   });
 
   const { data: convos } = useQuery({
     queryKey: ["chatbot-conversations"],
-    queryFn: () => tenant.conversations(apiKey),
-    enabled: !!apiKey,
+    queryFn: () => tenant.conversations(),
   });
 
   const { data: docs, isLoading: docsLoading } = useQuery({
     queryKey: ["chatbot-knowledge"],
-    queryFn: () => tenant.knowledge(apiKey),
-    enabled: !!apiKey,
+    queryFn: () => tenant.knowledge(),
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +54,7 @@ function ChatbotPage() {
     }
     setUploading(true);
     try {
-      const result = await uploadDocument(apiKey, file);
+      const result = await uploadDocument(file);
       toast.success(`${result.chunks_uploaded} chunks uploaded from ${result.filename}`);
       queryClient.invalidateQueries({ queryKey: ["chatbot-knowledge"] });
     } catch (err: any) {
@@ -180,7 +175,7 @@ function ChatbotPage() {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={uploading || !apiKey}
+                disabled={uploading}
                 onClick={() => fileRef.current?.click()}
               >
                 {uploading ? (

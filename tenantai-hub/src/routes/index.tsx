@@ -27,19 +27,19 @@ export const Route = createFileRoute("/")({
 const chartColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
 function Overview() {
-  const { role, apiKey } = useApp();
+  const { role } = useApp();
   const isAdmin = role === "admin";
 
   const { data: tData } = useQuery({
     queryKey: ["tenant-summary"],
-    queryFn: () => tenant.summary(apiKey),
-    enabled: !isAdmin && !!apiKey,
+    queryFn: () => tenant.summary(),
+    enabled: !isAdmin,
   });
 
   const { data: usageData } = useQuery({
     queryKey: ["tenant-usage"],
-    queryFn: () => tenant.usage(apiKey),
-    enabled: !isAdmin && !!apiKey,
+    queryFn: () => tenant.usage(),
+    enabled: !isAdmin,
     select: (d) => d.series.map((s: { date: string; requests: number; tokens: number; cost: number }, i: number) => ({
       day: `D${i + 1}`,
       requests: s.requests,

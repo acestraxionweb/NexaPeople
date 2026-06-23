@@ -1,5 +1,5 @@
 const SSR_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const CLIENT_BASE = "http://localhost:8000";
+const CLIENT_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const BASE = typeof window === "undefined" ? SSR_BASE : CLIENT_BASE;
 
 class ApiError extends Error {
@@ -10,15 +10,25 @@ class ApiError extends Error {
   }
 }
 
+function getJwt(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("jwt");
+  } catch {
+    return null;
+  }
+}
+
 async function request(
   path: string,
-  options?: { method?: string; body?: unknown; apiKey?: string },
+  options?: { method?: string; body?: unknown },
 ) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (options?.apiKey) {
-    headers["x-api-key"] = options.apiKey;
+  const t = getJwt();
+  if (t) {
+    headers["Authorization"] = `Bearer ${t}`;
   }
   const res = await fetch(`${BASE}${path}`, {
     method: options?.method || "GET",
@@ -32,34 +42,41 @@ async function request(
   return res.json();
 }
 
-/* ── Tenant-scoped (use bot token as apiKey) ── */
+/* ── Auth ── */
+
+export const auth = {
+  me: () => request("/auth/me"),
+};
+
+/* ── Tenant-scoped ── */
 
 export const tenant = {
-  summary: (key: string) => request("/api/tenant/summary", { apiKey: key }),
-  usage: (key: string) => request("/api/tenant/usage", { apiKey: key }),
-  workspace: (key: string) => request("/api/tenant/workspace", { apiKey: key }),
-  updateWorkspace: (key: string, data: Record<string, unknown>) =>
-    request("/api/tenant/workspace", { method: "PUT", body: data, apiKey: key }),
-  chatbot: (key: string) => request("/api/tenant/chatbot", { apiKey: key }),
-  updateChatbot: (key: string, data: Record<string, unknown>) =>
-    request("/api/tenant/chatbot", { method: "PUT", body: data, apiKey: key }),
-  keys: (key: string) => request("/api/tenant/keys", { apiKey: key }),
-  logs: (key: string) => request("/api/tenant/logs", { apiKey: key }),
-  knowledge: (key: string) => request("/api/tenant/knowledge", { apiKey: key }),
-  conversations: (key: string) => request("/api/tenant/conversations", { apiKey: key }),
+  summary: () => request("/api/tenant/summary"),
+  usage: () => request("/api/tenant/usage"),
+  workspace: () => request("/api/tenant/workspace"),
+  updateWorkspace: (data: Record<string, unknown>) =>
+    request("/api/tenant/workspace", { method: "PUT", body: data }),
+  chatbot: () => request("/api/tenant/chatbot"),
+  updateChatbot: (data: Record<string, unknown>) =>
+    request("/api/tenant/chatbot", { method: "PUT", body: data }),
+  keys: () => request("/api/tenant/keys"),
+  logs: () => request("/api/tenant/logs"),
+  knowledge: () => request("/api/tenant/knowledge"),
+  conversations: () => request("/api/tenant/conversations"),
 };
 
 export async function uploadDocument(
-  apiKey: string,
   file: File,
 ): Promise<{ filename: string; chunks_uploaded: number; company: string }> {
-  const base = typeof window === "undefined"
-    ? (import.meta.env.VITE_API_URL || "http://localhost:8000")
-    : "http://localhost:8000";
+  const base = SSR_BASE;
   const form = new FormData();
   form.append("file", file);
-  form.append("bot_token", apiKey);
-  const res = await fetch(`${base}/documents/upload`, { method: "POST", body: form });
+  const t = getJwt();
+  const headers: Record<string, string> = {};
+  if (t) {
+    headers["Authorization"] = `Bearer ${t}`;
+  }
+  const res = await fetch(`${base}/documents/upload`, { method: "POST", body: form, headers });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new ApiError(res.status, text || res.statusText);
@@ -73,6 +90,6 @@ export const admin = {
   tenants: () => request("/api/admin/tenants"),
   health: () => request("/api/admin/health"),
   audit: () => request("/api/admin/audit"),
-  provision: (data: { companyName: string; telegramBotToken: string; plan?: string }) =>
+  provision: (data: { companyName: string; telegramBotToken: string; plan?: string; adminEmail?: string }) =>
     request("/api/admin/provision", { method: "POST", body: data }),
 };

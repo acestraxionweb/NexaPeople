@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
 from app.migrate import run as run_migrations
-from app.routers import telegram, documents, dashboard_api, admin_provision, telegram_webhook
+from app.routers import telegram, documents, dashboard_api, admin_provision, telegram_webhook, auth
 
 
 @asynccontextmanager
@@ -31,6 +31,7 @@ app.include_router(documents.router)
 app.include_router(dashboard_api.router)
 app.include_router(admin_provision.router)
 app.include_router(telegram_webhook.router)
+app.include_router(auth.router)
 
 
 @app.get("/health")

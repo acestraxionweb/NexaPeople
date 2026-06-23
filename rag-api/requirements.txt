@@ -10,3 +10,4 @@ pypdf
 pinecone
 fastembed
 python-multipart
+python-jose[cryptography]

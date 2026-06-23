@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout, StatCard } from "@/components/dashboard-layout";
-import { useApp } from "@/lib/app-context";
 import { tenant } from "@/lib/api";
 import {
   Bar,
@@ -21,11 +20,9 @@ export const Route = createFileRoute("/usage")({
 });
 
 function UsagePage() {
-  const { apiKey } = useApp();
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-usage"],
-    queryFn: () => tenant.usage(apiKey),
-    enabled: !!apiKey,
+    queryFn: () => tenant.usage(),
     select: (d) => d.series.map((s: any, i: number) => ({
       day: `D${i + 1}`,
       requests: s.requests,

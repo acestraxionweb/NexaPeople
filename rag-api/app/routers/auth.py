@@ -137,20 +137,26 @@ async def google_callback(code: str = Query(...)):
             user.google_sub = google_sub
             user.name = name
             user.last_login = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(user)
+            token = create_jwt(user)
         else:
             admin_emails = [e.strip() for e in settings.google_admin_emails.split(",") if e.strip()]
-            role = "admin" if email in admin_emails else "tenant"
-            user = TenantUser(
-                email=email,
-                name=name,
-                google_sub=google_sub,
-                role=role,
-            )
-            db.add(user)
+            if email in admin_emails:
+                user = TenantUser(
+                    email=email,
+                    name=name,
+                    google_sub=google_sub,
+                    role="admin",
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+                token = create_jwt(user)
+            else:
+                frontend_url = settings.frontend_url.rstrip("/")
+                return RedirectResponse(f"{frontend_url}/login?error=not_authorized")
 
-        db.commit()
-        db.refresh(user)
-        token = create_jwt(user)
         frontend_url = settings.frontend_url.rstrip("/")
         return RedirectResponse(f"{frontend_url}/login?token={token}")
     finally:

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
@@ -8,6 +8,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign In · Nexus AI" }] }),
   validateSearch: (search: Record<string, string>) => ({
     token: search.token || "",
+    error: search.error || "",
   }),
   component: LoginPage,
 });
@@ -15,8 +16,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const { user, login } = useAuth();
-  const { token } = Route.useSearch();
-  const [error, setError] = useState("");
+  const { token, error: err } = Route.useSearch();
 
   useEffect(() => {
     if (user) {
@@ -44,8 +44,12 @@ function LoginPage() {
         <h1 className="text-xl font-semibold">Nexus AI</h1>
         <p className="mt-1 text-sm text-muted-foreground">Sign in to your workspace</p>
 
-        {error && (
-          <p className="mt-4 text-sm text-destructive">{error}</p>
+        {err && (
+          <p className="mt-4 text-sm text-destructive">
+            {err === "not_authorized"
+              ? "Not authorized. Only pre-authorized members can sign in."
+              : "An error occurred"}
+          </p>
         )}
 
         <div className="mt-8">

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from httpx import AsyncClient
 from jose import JWTError, jwt
@@ -32,10 +32,16 @@ def decode_jwt(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
-def get_current_user(authorization: str = Query("", alias="token")) -> dict:
-    if not authorization:
+def get_current_user(
+    authorization: str = Header("", alias="Authorization"),
+    token: str = Query(""),
+) -> dict:
+    t = token
+    if authorization.startswith("Bearer "):
+        t = authorization[7:]
+    if not t:
         raise HTTPException(status_code=401, detail="Missing token")
-    return decode_jwt(authorization)
+    return decode_jwt(t)
 
 
 class CurrentUser(BaseModel):

@@ -1,5 +1,5 @@
 const SSR_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const CLIENT_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const CLIENT_BASE = "http://localhost:8000";
 const BASE = typeof window === "undefined" ? SSR_BASE : CLIENT_BASE;
 
 class ApiError extends Error {
@@ -68,7 +68,7 @@ export const tenant = {
 export async function uploadDocument(
   file: File,
 ): Promise<{ filename: string; chunks_uploaded: number; company: string }> {
-  const base = SSR_BASE;
+  const base = CLIENT_BASE;
   const form = new FormData();
   form.append("file", file);
   const t = getJwt();

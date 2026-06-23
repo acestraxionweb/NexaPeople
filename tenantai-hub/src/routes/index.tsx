@@ -171,6 +171,7 @@ function Overview() {
       {isAdmin && adminTenants && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
           <div className="text-sm font-semibold mb-3">Tenants</div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b border-border">
@@ -193,6 +194,7 @@ function Overview() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </DashboardLayout>

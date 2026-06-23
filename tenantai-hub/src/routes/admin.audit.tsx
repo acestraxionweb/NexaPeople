@@ -16,7 +16,7 @@ function AuditPage() {
 
   return (
     <DashboardLayout title="Audit logs" subtitle="Sensitive events across the platform">
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs text-muted-foreground">
             <tr>

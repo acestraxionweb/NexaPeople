@@ -1,13 +1,16 @@
-import { Moon, Sun, LogOut } from "lucide-react";
+import { Moon, Sun, LogOut, Menu } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 
-export function AppHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function AppHeader({ title, subtitle, onMenuClick }: { title: string; subtitle?: string; onMenuClick?: () => void }) {
   const { theme, toggleTheme, role, tenantName } = useApp();
   const { user, logout } = useAuth();
   return (
-    <header className="flex h-14 items-center gap-3 border-b border-border bg-background/80 backdrop-blur px-4 md:px-6 sticky top-0 z-10">
+    <header className="flex h-14 items-center gap-3 border-b border-border bg-background/80 backdrop-blur px-4 md:px-6 sticky top-0 z-20">
+      <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={onMenuClick} aria-label="Open navigation">
+        <Menu className="h-4 w-4" />
+      </Button>
       <div className="min-w-0 flex-1">
         <h1 className="text-sm font-semibold truncate">{title}</h1>
         {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}

@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   KeyRound,
@@ -14,14 +15,14 @@ import {
 import { useApp } from "@/lib/app-context";
 import { cn } from "@/lib/utils";
 
-type NavItem = {
+export type NavItem = {
   to: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
   exact?: boolean;
 };
 
-const tenantNav: NavItem[] = [
+export const tenantNav: NavItem[] = [
   { to: "/", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/api-keys", label: "API Keys", icon: KeyRound },
   { to: "/usage", label: "Usage", icon: Activity },
@@ -30,7 +31,7 @@ const tenantNav: NavItem[] = [
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
-const adminNav: NavItem[] = [
+export const adminNav: NavItem[] = [
   { to: "/", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/admin/tenants", label: "Tenants", icon: Building2 },
   { to: "/usage", label: "Global Usage", icon: Activity },

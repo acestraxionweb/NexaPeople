@@ -283,29 +283,49 @@ def admin_tenants(_admin: dict = Depends(_require_admin)):
     db = SessionLocal()
     try:
         tenants = db.query(Tenant).all()
-        sk = spend_keys()
-        spend_by_token = {}
-        for k in sk:
-            t = k.get("token", "")
-            spend_by_token[t] = k
-
-        result = []
-        for t in tenants:
-            kh = key_hash(t.litellm_virtual_key) if t.litellm_virtual_key else ""
-            lk = spend_by_token.get(kh, {})
-            result.append({
-                "id": str(t.id),
-                "companyName": t.company_name,
-                "plan": t.plan or "starter",
-                "status": t.status,
-                "users": 1,
-                "requests": lk.get("spend", 0) * 1000,
-                "cost": round(lk.get("spend", 0), 6),
-                "created": t.created_at.strftime("%Y-%m-%d") if t.created_at else "N/A",
-            })
-        return {"tenants": result}
     finally:
         db.close()
+
+    try:
+        all_logs = spend_logs(start_date=(datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d"))
+    except Exception:
+        all_logs = []
+
+    key_map = {}
+    for t in tenants:
+        if t.litellm_virtual_key:
+            kh = key_hash(t.litellm_virtual_key)
+            key_map[kh] = t
+
+    by_tenant = defaultdict(lambda: {"requests": 0, "tokens": 0, "cost": 0.0, "users": set()})
+    for e in all_logs:
+        kh = e.get("api_key", "")
+        tenant = key_map.get(kh)
+        if not tenant:
+            continue
+        tid = str(tenant.id)
+        by_tenant[tid]["requests"] += 1
+        by_tenant[tid]["tokens"] += e.get("total_tokens", 0)
+        by_tenant[tid]["cost"] += e.get("spend", 0)
+        uid = e.get("user") or e.get("end_user") or ""
+        if uid:
+            by_tenant[tid]["users"].add(uid)
+
+    result = []
+    for t in tenants:
+        u = by_tenant.get(str(t.id), {"requests": 0, "tokens": 0, "cost": 0.0, "users": set()})
+        result.append({
+            "id": str(t.id),
+            "companyName": t.company_name,
+            "plan": t.plan or "starter",
+            "status": t.status,
+            "users": len(u["users"]) or 1,
+            "requests": u["requests"],
+            "tokens": u["tokens"],
+            "cost": round(u["cost"], 6),
+            "created": t.created_at.strftime("%Y-%m-%d") if t.created_at else "N/A",
+        })
+    return {"tenants": result}
 
 
 @router.get("/admin/health")
@@ -397,6 +417,48 @@ def admin_usage(_admin: dict = Depends(_require_admin)):
         "totalTokens": total_tok,
         "totalCost": round(total_spend, 6),
     }
+
+
+@router.get("/admin/usage/breakdown")
+def admin_usage_breakdown(_admin: dict = Depends(_require_admin)):
+    db = SessionLocal()
+    try:
+        tenants = db.query(Tenant).all()
+    finally:
+        db.close()
+
+    try:
+        all_logs = spend_logs(start_date=(datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d"))
+    except Exception:
+        all_logs = []
+
+    key_map = {}
+    for t in tenants:
+        if t.litellm_virtual_key:
+            kh = key_hash(t.litellm_virtual_key)
+            key_map[kh] = t
+
+    by_tenant = defaultdict(lambda: {"requests": 0, "tokens": 0, "cost": 0.0})
+    for e in all_logs:
+        kh = e.get("api_key", "")
+        tenant = key_map.get(kh)
+        tid = str(tenant.id) if tenant else "unknown"
+        by_tenant[tid]["requests"] += 1
+        by_tenant[tid]["tokens"] += e.get("total_tokens", 0)
+        by_tenant[tid]["cost"] += e.get("spend", 0)
+
+    result = []
+    for t in tenants:
+        u = by_tenant.get(str(t.id), {"requests": 0, "tokens": 0, "cost": 0.0})
+        result.append({
+            "id": str(t.id),
+            "companyName": t.company_name,
+            "requests": u["requests"],
+            "tokens": u["tokens"],
+            "cost": round(u["cost"], 6),
+        })
+
+    return {"tenants": result}
 
 
 @router.get("/admin/audit")

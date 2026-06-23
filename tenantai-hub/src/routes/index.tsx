@@ -177,6 +177,7 @@ function Overview() {
                 <th className="text-left font-medium py-2">Tenant</th>
                 <th className="text-left font-medium">Plan</th>
                 <th className="text-right font-medium">Requests</th>
+                <th className="text-right font-medium">Tokens</th>
                 <th className="text-right font-medium">Cost</th>
               </tr>
             </thead>
@@ -186,6 +187,7 @@ function Overview() {
                   <td className="py-2.5">{t.companyName}</td>
                   <td className="text-muted-foreground">{t.plan}</td>
                   <td className="text-right tabular-nums">{t.requests.toLocaleString()}</td>
+                  <td className="text-right tabular-nums">{(t.tokens ?? 0).toLocaleString()}</td>
                   <td className="text-right tabular-nums">${t.cost.toFixed(2)}</td>
                 </tr>
               ))}

@@ -91,6 +91,7 @@ export const admin = {
   health: () => request("/api/admin/health"),
   audit: () => request("/api/admin/audit"),
   usage: () => request("/api/admin/usage"),
+  usageBreakdown: () => request("/api/admin/usage/breakdown"),
   provision: (data: { companyName: string; telegramBotToken: string; plan?: string; adminEmail?: string }) =>
     request("/api/admin/provision", { method: "POST", body: data }),
 };

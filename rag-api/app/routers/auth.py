@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -80,23 +81,35 @@ def auth_me(user: dict = Depends(get_current_user)) -> CurrentUser:
         db.close()
 
 
+
+
 @router.get("/google/login")
-async def google_login():
+async def google_login(redirect_uri: str = Query(None)):
+    uri = redirect_uri or settings.google_redirect_uri
+    state = base64.urlsafe_b64encode(uri.encode()).decode()
     params = {
         "client_id": settings.google_client_id,
-        "redirect_uri": settings.google_redirect_uri,
+        "redirect_uri": uri,
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
+        "state": state,
     }
     qs = "&".join(f"{k}={v}" for k, v in params.items())
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{qs}")
 
 
 @router.get("/google/callback")
-async def google_callback(code: str = Query(...)):
+async def google_callback(code: str = Query(...), state: str = Query(None)):
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
+
+    redirect_uri = settings.google_redirect_uri
+    if state:
+        try:
+            redirect_uri = base64.urlsafe_b64decode(state.encode()).decode()
+        except Exception:
+            pass
 
     async with AsyncClient() as client:
         token_resp = await client.post(
@@ -105,7 +118,7 @@ async def google_callback(code: str = Query(...)):
                 "code": code,
                 "client_id": settings.google_client_id,
                 "client_secret": settings.google_client_secret,
-                "redirect_uri": settings.google_redirect_uri,
+                "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
             },
         )

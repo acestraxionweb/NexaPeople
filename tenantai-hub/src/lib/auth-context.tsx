@@ -34,9 +34,9 @@ export function getToken(): string | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   const fetchUser = async () => {
     try {
@@ -61,11 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (token: string) => {
     setToken(token);
-    fetchUser().then((u) => {
-      if (u) {
-        navigate({ to: "/" });
-      }
-    });
+    fetchUser();
   };
 
   const logout = () => {

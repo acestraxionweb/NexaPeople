@@ -73,6 +73,14 @@ services:
     depends_on:
       - rag-api
 
+  telegram-bot-c:
+    build: ./telegram
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN_C}
+      RAG_API_URL: http://rag-api:8000
+    depends_on:
+      - rag-api
+
   dashboard:
     build: ./tenantai-hub
     ports:

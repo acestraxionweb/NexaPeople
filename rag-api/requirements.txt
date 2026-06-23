@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+psycopg2-binary
+sqlalchemy
+pydantic
+pydantic-settings
+python-dotenv
+httpx
+pypdf
+pinecone
+fastembed
+python-multipart

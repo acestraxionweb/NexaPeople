@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.env
+rag-api/.env
+tenantai-hub/node_modules/
+tenantai-hub/dist/
+tenantai-hub/.lovable/
+*.log
+.DS_Store

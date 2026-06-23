@@ -48,9 +48,10 @@ services:
       PINECONE_API_KEY: ${PINECONE_API_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/google/callback}
       GOOGLE_ADMIN_EMAILS: ${GOOGLE_ADMIN_EMAILS}
       JWT_SECRET: ${JWT_SECRET:-change-me-to-a-random-secret}
-      FRONTEND_URL: http://localhost:8080
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
     depends_on:
       - db
       - litellm

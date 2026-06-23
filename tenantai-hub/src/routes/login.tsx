@@ -31,9 +31,7 @@ function LoginPage() {
   }, [token]);
 
   const handleGoogleLogin = () => {
-    const origin = window.location.origin;
-    const redirectUri = `${origin}/auth/google/callback`;
-    window.location.href = `${origin}/auth/google/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = "http://localhost:8000/auth/google/login";
   };
 
   return (

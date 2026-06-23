@@ -13,10 +13,6 @@ export default defineConfig({
   vite: {
     server: {
       allowedHosts: true,
-      proxy: {
-        "/auth": "http://rag-api:8000",
-        "/api": "http://rag-api:8000",
-      },
     },
   },
 });

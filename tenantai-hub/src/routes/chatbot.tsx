@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { tenant, uploadDocument } from "@/lib/api";
-import { FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { FileText, Loader2, Trash2, Upload, Check } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/chatbot")({
@@ -30,11 +30,30 @@ function ChatbotPage() {
   const [saving, setSaving] = useState(false);
   const [temp, setTemp] = useState([0.7]);
   const [maxTok, setMaxTok] = useState([1024]);
+  const [sysPrompt, setSysPrompt] = useState("");
+  const [preset, setPreset] = useState("");
 
   const { data: config } = useQuery({
     queryKey: ["chatbot-config"],
     queryFn: () => tenant.chatbot(),
   });
+
+  useEffect(() => {
+    if (config) {
+      setTemp([config.temperature ?? 0.7]);
+      setMaxTok([config.maxTokens ?? 1024]);
+      setSysPrompt(config.systemPrompt ?? "");
+      setPreset(config.preset ?? "");
+    }
+  }, [config]);
+
+  const handleSelectPreset = (key: string) => {
+    const p = config?.presets?.[key];
+    if (p) {
+      setPreset(key);
+      setSysPrompt(p.template);
+    }
+  };
 
   const { data: convos } = useQuery({
     queryKey: ["chatbot-conversations"],
@@ -73,7 +92,8 @@ function ChatbotPage() {
         model: (document.getElementById("model-select") as HTMLSelectElement)?.value || config?.model || "deepseek-v4-flash-free",
         temperature: temp[0],
         maxTokens: maxTok[0],
-        systemPrompt: (document.getElementById("sys-prompt") as HTMLTextAreaElement)?.value || "",
+        systemPrompt: sysPrompt,
+        preset,
       });
       toast.success("Configuration saved");
       queryClient.invalidateQueries({ queryKey: ["chatbot-config"] });
@@ -136,12 +156,57 @@ function ChatbotPage() {
               </div>
             </div>
 
+            <div className="mt-6 space-y-3">
+              <div>
+                <Label>System prompt preset</Label>
+                <p className="text-xs text-muted-foreground">Choose a tone preset or write your own.</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {config?.presets && Object.entries(config.presets).map(([key, p]: [string, any]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleSelectPreset(key)}
+                    className={`relative text-left rounded-lg border p-3 transition-colors ${
+                      preset === key
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {preset === key && (
+                      <Check className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-primary" />
+                    )}
+                    <div className="text-sm font-medium">{p.label}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{p.description}</div>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { setPreset("custom"); }}
+                  className={`relative text-left rounded-lg border p-3 transition-colors ${
+                    preset === "custom" || !preset
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  {(preset === "custom" || !preset) && (
+                    <Check className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-primary" />
+                  )}
+                  <div className="text-sm font-medium">Custom</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">Write your own system prompt</div>
+                </button>
+              </div>
+            </div>
+
             <div className="mt-5 space-y-2">
               <Label>System prompt</Label>
               <Textarea
-                id="sys-prompt"
                 rows={6}
-                defaultValue={config?.systemPrompt ?? ""}
+                value={sysPrompt}
+                onChange={(e) => {
+                  setSysPrompt(e.target.value);
+                  if (preset !== "custom") setPreset("custom");
+                }}
                 className="font-mono text-xs"
               />
             </div>

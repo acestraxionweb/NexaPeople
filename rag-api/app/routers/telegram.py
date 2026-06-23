@@ -1,3 +1,5 @@
+import json
+import logging
 import time
 from collections import defaultdict
 
@@ -5,9 +7,11 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from app.services.tenant_service import get_tenant
+
+logger = logging.getLogger("concierge.telegram")
 from app.services.embedding_service import embed_texts
 from app.services.pinecone_service import query_vectors
-from app.services.memory_service import get_memories, add_memory, extract_fact
+from app.services.memory_service import get_memories, add_memory, add_conversation_turn, extract_fact
 from app.services.sanitize import sanitize_reply
 from app.litellm_service import chat_completion
 
@@ -51,66 +55,51 @@ def _build_context(namespace: str, question: str) -> str:
     return "\n\n".join(chunks)
 
 
-def _build_system_prompt(company_name: str, context: str, memories: list[str] | None = None, custom_prompt: str = "") -> str:
-    memory_block = ""
-    if memories:
-        memory_block = "\nWhat I know about this person:\n" + "\n".join(f"- {m}" for m in memories)
+def _build_system_prompt(company_name: str, context: str, memories: dict | None = None, custom_prompt: str = "") -> str:
+    facts = memories.get("facts", []) if memories else []
+    messages = memories.get("messages", []) if memories else []
 
-    if not context:
-        base = (
-            f"You are {company_name}'s AI concierge — you represent the company. "
-            "You're still getting up to speed because your team hasn't "
-            "briefed you yet. "
-            "When someone asks something say: "
-            "\"I'm still getting briefed on that! Check back after your team "
-            "has filled me in.\" "
-            "Never invent or guess. Be upfront that you just don't know yet."
-        )
-        result = base + memory_block
-        if custom_prompt:
-            result += "\n\n" + custom_prompt
-        return result
+    facts_block = ""
+    if facts:
+        facts_block = "\nWhat I know about this person:\n" + "\n".join(f"- {m}" for m in facts)
 
-    parts = [
-        f"You are {company_name}'s AI concierge — you represent the company. "
-        "You know everything about our products, services, policies, "
-        "and how we operate. "
-        "Talk like a friendly colleague who's part of the team — "
-        "warm, knowledgeable, and down-to-earth.",
-        "VOICE — Always speak as a company representative:",
-        "  • Use 'we', 'our', 'us': 'We offer 14 days of annual leave.'",
-        "  • Never speak about {company_name} as a third party",
-        "  • Never mention 'documents', 'policies', 'context', 'according to', 'based on', or 'reference'",
-        "  • Never say 'you are entitled to' — say 'we offer' or 'we give'",
-        "  • Use <b>bold</b> for numbers and key terms only",
-        "  • Keep it concise — 2-4 short paragraphs",
-        "  • If you don't know something, say \"I'm not sure about that one\" or \"Let me check — I don't have that info yet\"",
-        "",
-        "SCOPE — You answer about {company_name}:",
-        "  • Our HR policies and workplace rules",
-        "  • Our products and services",
-        "  • Our SOPs and MOPs",
-        "  • How we operate day-to-day",
-        "",
-        "OUT OF SCOPE — Politely decline:",
-        "  • Personal advice, legal advice, financial advice",
-        "  • Technical support, IT issues",
-        "  • Credentials, API keys, secrets, admin access — never share",
-        "  • Anything unrelated to {company_name}",
-        "  • Say: \"I'm here to talk about {company_name} stuff only!\"",
-        "",
-        "If a question is clearly off-topic or spam, respond with a short polite refusal — do not engage.",
-        "",
-        "Company knowledge:\n" + context,
-    ]
-    prompt = "\n\n".join(parts)
-    result = prompt + memory_block
+    history_block = ""
+    if messages:
+        lines = []
+        for m in messages:
+            lines.append(f"User: {m['user']}")
+            lines.append(f"Assistant: {m['assistant']}")
+        history_block = "\nRecent conversation:\n" + "\n".join(lines)
+
     if custom_prompt:
-        result += "\n\n" + custom_prompt
+        parts = [custom_prompt]
+    elif context:
+        parts = [
+            f"You are {company_name}'s AI concierge. You represent the company and have access "
+            "to its knowledge base to answer questions accurately. "
+            "Be warm, helpful, and professional. If you don't know something, say so rather than guessing.",
+        ]
+    else:
+        parts = [
+            f"You are {company_name}'s AI concierge. You're still learning about the company's "
+            "operations so you may not have all the answers yet. "
+            "When asked something you don't know, politely say you're still getting up to speed "
+            "and suggest they check back later. Never invent or guess.",
+        ]
+
+    if context:
+        parts.append("Company knowledge:\n" + context)
+
+    result = "\n\n".join(parts)
+    if facts_block:
+        result += facts_block
+    if history_block:
+        result += history_block
     return result
 
 
-def _extract_and_save_memory(tenant_id: str, user_id: str, message: str, reply: str, virtual_key: str):
+def _save_conversation_data(tenant_id: str, user_id: str, message: str, reply: str, virtual_key: str):
+    add_conversation_turn(tenant_id, user_id, message, reply)
     fact = extract_fact(message, reply, virtual_key)
     if fact:
         add_memory(tenant_id, user_id, fact)
@@ -134,11 +123,19 @@ def webhook_telegram(payload: WebhookPayload, background_tasks: BackgroundTasks)
     cfg = tenant.chatbot_config or {}
     custom_prompt = cfg.get("systemPrompt", "")
 
-    memories = []
+    memories: dict = {"facts": [], "messages": []}
     if payload.user_id:
         memories = get_memories(str(tenant.id), payload.user_id)
 
     system_prompt = _build_system_prompt(tenant.company_name, context, memories, custom_prompt)
+    logger.info(
+        "[%s] user=%s msg=%s model=%s facts=%s history=%d context=%d",
+        tenant.company_name, payload.user_id, payload.message,
+        cfg.get("model", "deepseek-v4-flash-free"),
+        memories.get("facts", []), len(memories.get("messages", [])), len(context),
+    )
+    logger.debug("[%s] system_prompt=%s", tenant.company_name, system_prompt)
+
     reply = sanitize_reply(chat_completion(
         payload.message, tenant.litellm_virtual_key,
         model=cfg.get("model", "deepseek-v4-flash-free"),
@@ -150,8 +147,13 @@ def webhook_telegram(payload: WebhookPayload, background_tasks: BackgroundTasks)
     if not reply or not reply.strip():
         reply = "Sorry, I ran into an issue generating a response. Please try rephrasing your question."
 
+    logger.info(
+        "[%s] reply_len=%d reply=%.200s",
+        tenant.company_name, len(reply), reply,
+    )
+
     if payload.user_id:
-        background_tasks.add_task(_extract_and_save_memory, str(tenant.id), payload.user_id, payload.message, reply, tenant.litellm_virtual_key)
+        background_tasks.add_task(_save_conversation_data, str(tenant.id), payload.user_id, payload.message, reply, tenant.litellm_virtual_key)
 
     return WebhookResponse(
         tenant=tenant.pinecone_namespace,

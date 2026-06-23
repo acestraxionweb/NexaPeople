@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,6 +8,11 @@ from app.config import settings
 from app.database import engine, Base
 from app.migrate import run as run_migrations
 from app.routers import telegram, documents, dashboard_api, admin_provision, telegram_webhook, auth
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s %(message)s",
+)
 
 
 @asynccontextmanager

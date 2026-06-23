@@ -1,9 +1,13 @@
+import logging
+
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
+logger = logging.getLogger("concierge.telegram_webhook")
+
 from app.database import SessionLocal
 from app.models import Tenant
-from app.routers.telegram import _build_context, _build_system_prompt, _check_rate_limit, _extract_and_save_memory
+from app.routers.telegram import _build_context, _build_system_prompt, _check_rate_limit, _save_conversation_data
 from app.services.memory_service import get_memories
 from app.services.sanitize import sanitize_reply
 from app.litellm_service import chat_completion
@@ -62,6 +66,13 @@ def telegram_webhook(bot_token: str, update: dict, background_tasks: BackgroundT
 
     memories = get_memories(str(tenant.id), user_id)
     system_prompt = _build_system_prompt(tenant.company_name, context, memories, custom_prompt)
+    logger.info(
+        "[%s] user=%s msg=%s model=%s facts=%s history=%d context=%d",
+        tenant.company_name, user_id, text,
+        cfg.get("model", "deepseek-v4-flash-free"),
+        memories.get("facts", []), len(memories.get("messages", [])), len(context),
+    )
+    logger.debug("[%s] system_prompt=%s", tenant.company_name, system_prompt)
     reply = sanitize_reply(chat_completion(
         text, tenant.litellm_virtual_key,
         model=cfg.get("model", "deepseek-v4-flash-free"),
@@ -73,7 +84,8 @@ def telegram_webhook(bot_token: str, update: dict, background_tasks: BackgroundT
     if not reply or not reply.strip():
         reply = "Sorry, I ran into an issue generating a response. Please try rephrasing your question."
 
-    background_tasks.add_task(_extract_and_save_memory, str(tenant.id), user_id, text, reply, tenant.litellm_virtual_key)
+    logger.info("[%s] reply_len=%d reply=%.200s", tenant.company_name, len(reply), reply)
+    background_tasks.add_task(_save_conversation_data, str(tenant.id), user_id, text, reply, tenant.litellm_virtual_key)
 
     with httpx.Client() as client:
         resp = client.post(

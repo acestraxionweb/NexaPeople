@@ -157,22 +157,62 @@ def update_workspace(body: dict, tenant: Tenant = Depends(_get_tenant_combined))
         db.close()
 
 
+SYSTEM_PROMPT_PRESETS = {
+    "professional": {
+        "label": "Professional",
+        "description": "Formal, business-appropriate tone with precise language",
+        "template": "You are {company}'s AI concierge. Communicate in a professional, courteous manner. Use formal language, be precise, and always maintain a business-appropriate tone. Provide complete, well-structured responses.",
+    },
+    "friendly": {
+        "label": "Friendly & Warm",
+        "description": "Casual, approachable, and conversational style",
+        "template": "You are {company}'s AI concierge. Be warm, approachable, and conversational. Use casual language, be empathetic, and make the user feel welcome. It's okay to be informal and use everyday language.",
+    },
+    "concise": {
+        "label": "Concise",
+        "description": "Short, direct answers with minimal fluff",
+        "template": "You are {company}'s AI concierge. Keep responses short and direct. Get straight to the point. Use bullet points where helpful. Avoid fluff, pleasantries, and unnecessary explanations.",
+    },
+    "sales": {
+        "label": "Sales & Marketing",
+        "description": "Enthusiastic, persuasive, with calls to action",
+        "template": "You are {company}'s AI concierge. Be enthusiastic about what we offer. Highlight benefits, suggest relevant products and services, and use persuasive language. Always end with a call to action or offer further assistance.",
+    },
+    "support": {
+        "label": "Customer Support",
+        "description": "Patient, thorough, step-by-step guidance",
+        "template": "You are {company}'s AI concierge. Be patient, thorough, and helpful. Guide users step-by-step. Confirm understanding before moving on. If you don't know something, offer to connect them with a human. Prioritize solving the user's problem.",
+    },
+}
+
 DEFAULT_CHATBOT_CONFIG = {
     "model": "deepseek-v4-flash-free",
     "temperature": 0.7,
     "maxTokens": 1024,
     "systemPrompt": "",
+    "preset": "professional",
 }
 
 
 @router.get("/tenant/chatbot")
 def chatbot_config(tenant: Tenant = Depends(_get_tenant_combined)):
     cfg = tenant.chatbot_config or {}
+    preset = cfg.get("preset") or ("custom" if cfg.get("systemPrompt", "").strip() else DEFAULT_CHATBOT_CONFIG["preset"])
+    presets = {
+        k: {
+            "label": v["label"],
+            "description": v["description"],
+            "template": v["template"].format(company=tenant.company_name),
+        }
+        for k, v in SYSTEM_PROMPT_PRESETS.items()
+    }
     return {
         "model": cfg.get("model", DEFAULT_CHATBOT_CONFIG["model"]),
         "temperature": cfg.get("temperature", DEFAULT_CHATBOT_CONFIG["temperature"]),
         "maxTokens": cfg.get("maxTokens", DEFAULT_CHATBOT_CONFIG["maxTokens"]),
         "systemPrompt": cfg.get("systemPrompt", DEFAULT_CHATBOT_CONFIG["systemPrompt"]),
+        "preset": preset,
+        "presets": presets,
         "telegramWebhook": "",
         "botToken": tenant.telegram_bot_token[:12] + "...",
     }
@@ -184,7 +224,7 @@ def update_chatbot(body: dict, tenant: Tenant = Depends(_get_tenant_combined)):
     try:
         t = db.query(Tenant).get(tenant.id)
         cfg = dict(t.chatbot_config or {})
-        for key in ("model", "temperature", "maxTokens", "systemPrompt"):
+        for key in ("model", "temperature", "maxTokens", "systemPrompt", "preset"):
             if key in body:
                 cfg[key] = body[key]
         t.chatbot_config = cfg

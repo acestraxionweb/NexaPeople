@@ -29,6 +29,11 @@ MIGRATIONS = [
     """),
     text("CREATE INDEX IF NOT EXISTS idx_tenant_users_email ON concierge.tenant_users(email);"),
     text("ALTER TABLE concierge.tenants ADD COLUMN IF NOT EXISTS chatbot_config JSONB;"),
+    text("ALTER TABLE concierge.memories ADD COLUMN IF NOT EXISTS type VARCHAR DEFAULT 'fact';"),
+    text("ALTER TABLE concierge.memories ADD COLUMN IF NOT EXISTS user_msg TEXT;"),
+    text("ALTER TABLE concierge.memories ADD COLUMN IF NOT EXISTS bot_reply TEXT;"),
+    text("ALTER TABLE concierge.memories ALTER COLUMN fact DROP NOT NULL;"),
+    text("CREATE INDEX IF NOT EXISTS idx_memories_type ON concierge.memories(tenant_id, user_id, type, created_at DESC);"),
 ]
 
 

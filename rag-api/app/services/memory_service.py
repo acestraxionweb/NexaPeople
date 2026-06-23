@@ -7,19 +7,33 @@ from app.database import SessionLocal
 from app.litellm_service import chat_completion
 
 
-def get_memories(tenant_id: str, user_id: str) -> list[str]:
+def get_memories(tenant_id: str, user_id: str) -> dict:
     db = SessionLocal()
     try:
-        rows = db.execute(
+        fact_rows = db.execute(
             text("""
                 SELECT fact FROM concierge.memories
-                WHERE tenant_id = :tid AND user_id = :uid
+                WHERE tenant_id = :tid AND user_id = :uid AND type = 'fact'
                 ORDER BY created_at DESC
                 LIMIT 3
             """),
             {"tid": tenant_id, "uid": user_id},
         ).fetchall()
-        return [row[0] for row in rows]
+
+        msg_rows = db.execute(
+            text("""
+                SELECT user_msg, bot_reply FROM concierge.memories
+                WHERE tenant_id = :tid AND user_id = :uid AND type = 'message'
+                ORDER BY created_at DESC
+                LIMIT 3
+            """),
+            {"tid": tenant_id, "uid": user_id},
+        ).fetchall()
+
+        return {
+            "facts": [row[0] for row in fact_rows],
+            "messages": [{"user": row[0], "assistant": row[1]} for row in reversed(msg_rows)],
+        }
     finally:
         db.close()
 
@@ -28,15 +42,15 @@ def add_memory(tenant_id: str, user_id: str, fact: str):
     db = SessionLocal()
     try:
         existing = db.execute(
-            text("SELECT 1 FROM concierge.memories WHERE tenant_id = :tid AND user_id = :uid AND fact = :fact"),
+            text("SELECT 1 FROM concierge.memories WHERE tenant_id = :tid AND user_id = :uid AND fact = :fact AND type = 'fact'"),
             {"tid": tenant_id, "uid": user_id, "fact": fact},
         ).fetchone()
         if existing:
             return
         db.execute(
             text("""
-                INSERT INTO concierge.memories (id, tenant_id, user_id, fact, created_at)
-                VALUES (:id, :tid, :uid, :fact, :now)
+                INSERT INTO concierge.memories (id, tenant_id, user_id, type, fact, created_at)
+                VALUES (:id, :tid, :uid, 'fact', :fact, :now)
             """),
             {
                 "id": uuid.uuid4(),
@@ -49,10 +63,45 @@ def add_memory(tenant_id: str, user_id: str, fact: str):
         db.execute(
             text("""
                 DELETE FROM concierge.memories
-                WHERE (tenant_id, user_id) = (:tid, :uid)
+                WHERE tenant_id = :tid AND user_id = :uid AND type = 'fact'
                 AND id NOT IN (
                     SELECT id FROM concierge.memories
-                    WHERE tenant_id = :tid AND user_id = :uid
+                    WHERE tenant_id = :tid AND user_id = :uid AND type = 'fact'
+                    ORDER BY created_at DESC
+                    LIMIT 3
+                )
+            """),
+            {"tid": tenant_id, "uid": user_id},
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def add_conversation_turn(tenant_id: str, user_id: str, user_msg: str, bot_reply: str):
+    db = SessionLocal()
+    try:
+        db.execute(
+            text("""
+                INSERT INTO concierge.memories (id, tenant_id, user_id, type, user_msg, bot_reply, created_at)
+                VALUES (:id, :tid, :uid, 'message', :user_msg, :bot_reply, :now)
+            """),
+            {
+                "id": uuid.uuid4(),
+                "tid": tenant_id,
+                "uid": user_id,
+                "user_msg": user_msg,
+                "bot_reply": bot_reply,
+                "now": datetime.now(timezone.utc),
+            },
+        )
+        db.execute(
+            text("""
+                DELETE FROM concierge.memories
+                WHERE tenant_id = :tid AND user_id = :uid AND type = 'message'
+                AND id NOT IN (
+                    SELECT id FROM concierge.memories
+                    WHERE tenant_id = :tid AND user_id = :uid AND type = 'message'
                     ORDER BY created_at DESC
                     LIMIT 3
                 )

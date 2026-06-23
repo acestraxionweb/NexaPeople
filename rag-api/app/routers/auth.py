@@ -1,3 +1,5 @@
+import json
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -83,22 +85,42 @@ def auth_me(user: dict = Depends(get_current_user)) -> CurrentUser:
 
 
 @router.get("/google/login")
-async def google_login():
+async def google_login(
+    frontend_url: str = None,
+    redirect_uri: str = None,
+):
+    redirect_uri = redirect_uri or settings.google_redirect_uri
+    frontend_url = frontend_url or settings.frontend_url
+
+    state = json.dumps({"frontend_url": frontend_url, "redirect_uri": redirect_uri})
+
     params = {
         "client_id": settings.google_client_id,
-        "redirect_uri": settings.google_redirect_uri,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
+        "state": state,
     }
-    qs = "&".join(f"{k}={v}" for k, v in params.items())
+    qs = urllib.parse.urlencode(params)
     return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{qs}")
 
 
 @router.get("/google/callback")
-async def google_callback(code: str = Query(...)):
+async def google_callback(
+    code: str = Query(...),
+    state: str = None,
+):
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
+
+    # Decode OAuth state to get frontend URL and the original redirect_uri
+    try:
+        state_data = json.loads(state) if state else {}
+    except (json.JSONDecodeError, TypeError):
+        state_data = {}
+    frontend_url = (state_data.get("frontend_url") or settings.frontend_url).rstrip("/")
+    callback_redirect_uri = state_data.get("redirect_uri") or settings.google_redirect_uri
 
     async with AsyncClient() as client:
         token_resp = await client.post(
@@ -107,7 +129,7 @@ async def google_callback(code: str = Query(...)):
                 "code": code,
                 "client_id": settings.google_client_id,
                 "client_secret": settings.google_client_secret,
-                "redirect_uri": settings.google_redirect_uri,
+                "redirect_uri": callback_redirect_uri,
                 "grant_type": "authorization_code",
             },
         )
@@ -156,10 +178,8 @@ async def google_callback(code: str = Query(...)):
                 db.refresh(user)
                 token = create_jwt(user)
             else:
-                frontend_url = settings.frontend_url.rstrip("/")
                 return RedirectResponse(f"{frontend_url}/login?error=not_authorized")
 
-        frontend_url = settings.frontend_url.rstrip("/")
         return RedirectResponse(f"{frontend_url}/login?token={token}")
     finally:
         db.close()

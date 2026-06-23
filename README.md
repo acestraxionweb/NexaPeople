@@ -98,19 +98,47 @@ Accessible at `http://localhost:8080`. Sign in with Google.
 
 ## Remote Access via Tailscale
 
+Serve the dashboard (port 8080) and API (port 8000) over HTTPS on your Tailscale domain:
+
 ```bash
-tailscale serve --bg --https 443 localhost:8080
-tailscale serve --bg --https 8443 localhost:8000
+tailscale serve --bg --https 443 localhost:8080    # Dashboard
+tailscale serve --bg --https 8443 localhost:8000   # RAG API
 ```
 
-Set environment variables:
+Make them publicly accessible (optional):
+```bash
+tailscale funnel --bg --https 443 localhost:8080   # Public dashboard
+tailscale funnel --bg --https 8443 localhost:8000  # Public API
 ```
+
+### Switching between localhost and Tailscale
+
+Update `.env` and restart the relevant containers:
+
+**Tailscale mode (remote):**
+```env
+VITE_CLIENT_API_URL=https://<machine>.ts.net:8443
 FRONTEND_URL=https://<machine>.ts.net
 GOOGLE_REDIRECT_URI=https://<machine>.ts.net:8443/auth/google/callback
-VITE_CLIENT_API_URL=https://<machine>.ts.net:8443
 ```
 
-Register the callback URL in Google Cloud Console under Authorized redirect URIs.
+**Localhost mode:**
+```env
+VITE_CLIENT_API_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:8080
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+```
+
+Then apply:
+```bash
+docker compose up -d --force-recreate dashboard rag-api
+```
+
+> **Note:** OAuth redirects are now dynamic — the frontend passes its current origin through the OAuth flow, so only `VITE_CLIENT_API_URL` strictly needs to change. `FRONTEND_URL` and `GOOGLE_REDIRECT_URI` are fallbacks if the dynamic values are unavailable.
+
+Register **all** callback URLs in Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID → **Authorized redirect URIs**:
+- `http://localhost:8000/auth/google/callback`
+- `https://<machine>.ts.net:8443/auth/google/callback`
 
 ## Project Structure
 

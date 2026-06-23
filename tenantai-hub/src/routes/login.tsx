@@ -32,7 +32,9 @@ function LoginPage() {
 
   const handleGoogleLogin = () => {
     const apiUrl = import.meta.env.VITE_CLIENT_API_URL || "http://localhost:8000";
-    window.location.href = `${apiUrl}/auth/google/login`;
+    const origin = window.location.origin;
+    const redirectUri = `${apiUrl}/auth/google/callback`;
+    window.location.href = `${apiUrl}/auth/google/login?frontend_url=${encodeURIComponent(origin)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
   };
 
   return (

@@ -64,15 +64,14 @@ def telegram_webhook(bot_token: str, update: dict, background_tasks: BackgroundT
     else:
         context = ""
 
-    memories = get_memories(str(tenant.id), user_id)
-    system_prompt = _build_system_prompt(tenant.company_name, context, memories, custom_prompt)
+    history = get_memories(str(tenant.id), user_id)
+    system_prompt = _build_system_prompt(tenant.company_name, context, history, custom_prompt)
     logger.info(
-        "[%s] user=%s msg=%s model=%s facts=%s history=%d context=%d",
+        "[%s] user=%s msg=%s model=%s history=%d context=%d",
         tenant.company_name, user_id, text,
         cfg.get("model", "deepseek-v4-flash-free"),
-        memories.get("facts", []), len(memories.get("messages", [])), len(context),
+        len(history), len(context),
     )
-    logger.debug("[%s] system_prompt=%s", tenant.company_name, system_prompt)
     reply = sanitize_reply(chat_completion(
         text, tenant.litellm_virtual_key,
         model=cfg.get("model", "deepseek-v4-flash-free"),

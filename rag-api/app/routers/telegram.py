@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from collections import defaultdict
@@ -7,13 +6,13 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from app.services.tenant_service import get_tenant
-
-logger = logging.getLogger("concierge.telegram")
 from app.services.embedding_service import embed_texts
 from app.services.pinecone_service import query_vectors
-from app.services.memory_service import get_memories, add_memory, add_conversation_turn, extract_fact
+from app.services.memory_service import get_memories, add_conversation_turn
 from app.services.sanitize import sanitize_reply
 from app.litellm_service import chat_completion
+
+logger = logging.getLogger("concierge.telegram")
 
 router = APIRouter()
 
@@ -55,18 +54,11 @@ def _build_context(namespace: str, question: str) -> str:
     return "\n\n".join(chunks)
 
 
-def _build_system_prompt(company_name: str, context: str, memories: dict | None = None, custom_prompt: str = "") -> str:
-    facts = memories.get("facts", []) if memories else []
-    messages = memories.get("messages", []) if memories else []
-
-    facts_block = ""
-    if facts:
-        facts_block = "\nWhat I know about this person:\n" + "\n".join(f"- {m}" for m in facts)
-
+def _build_system_prompt(company_name: str, context: str, history: list[dict] | None = None, custom_prompt: str = "") -> str:
     history_block = ""
-    if messages:
+    if history:
         lines = []
-        for m in messages:
+        for m in history:
             lines.append(f"User: {m['user']}")
             lines.append(f"Assistant: {m['assistant']}")
         history_block = "\nRecent conversation:\n" + "\n".join(lines)
@@ -91,8 +83,6 @@ def _build_system_prompt(company_name: str, context: str, memories: dict | None 
         parts.append("Company knowledge:\n" + context)
 
     result = "\n\n".join(parts)
-    if facts_block:
-        result += facts_block
     if history_block:
         result += history_block
     return result
@@ -100,9 +90,6 @@ def _build_system_prompt(company_name: str, context: str, memories: dict | None 
 
 def _save_conversation_data(tenant_id: str, user_id: str, message: str, reply: str, virtual_key: str):
     add_conversation_turn(tenant_id, user_id, message, reply)
-    fact = extract_fact(message, reply, virtual_key)
-    if fact:
-        add_memory(tenant_id, user_id, fact)
 
 
 @router.post("/webhook/telegram", response_model=WebhookResponse)
@@ -123,18 +110,17 @@ def webhook_telegram(payload: WebhookPayload, background_tasks: BackgroundTasks)
     cfg = tenant.chatbot_config or {}
     custom_prompt = cfg.get("systemPrompt", "")
 
-    memories: dict = {"facts": [], "messages": []}
+    history: list[dict] = []
     if payload.user_id:
-        memories = get_memories(str(tenant.id), payload.user_id)
+        history = get_memories(str(tenant.id), payload.user_id)
 
-    system_prompt = _build_system_prompt(tenant.company_name, context, memories, custom_prompt)
+    system_prompt = _build_system_prompt(tenant.company_name, context, history, custom_prompt)
     logger.info(
-        "[%s] user=%s msg=%s model=%s facts=%s history=%d context=%d",
+        "[%s] user=%s msg=%s model=%s history=%d context=%d",
         tenant.company_name, payload.user_id, payload.message,
         cfg.get("model", "deepseek-v4-flash-free"),
-        memories.get("facts", []), len(memories.get("messages", [])), len(context),
+        len(history), len(context),
     )
-    logger.debug("[%s] system_prompt=%s", tenant.company_name, system_prompt)
 
     reply = sanitize_reply(chat_completion(
         payload.message, tenant.litellm_virtual_key,

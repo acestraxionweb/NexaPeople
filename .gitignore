@@ -1,11 +1,31 @@
-node_modules/
+# Python
 __pycache__/
 *.pyc
 *.pyo
-.env
-rag-api/.env
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
 tenantai-hub/node_modules/
 tenantai-hub/dist/
 tenantai-hub/.lovable/
-*.log
+
+# Environment
+.env
+rag-api/.env
+*.env.local
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

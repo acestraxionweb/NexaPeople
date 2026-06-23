@@ -1,79 +1,138 @@
-# AI Concierge — NexaPeople
+# NexaPeople — AI Concierge
 
-Multi-tenant AI concierge SaaS. Each client gets an isolated Telegram bot with RAG on their own documents, centralized LLM billing via LiteLLM, and per-user memory.
+Multi-tenant AI concierge platform. Each client gets an isolated Telegram bot with RAG on their own documents, centralized LLM billing via LiteLLM, per-user memory, and a dashboard to manage their workspace.
+
+## Architecture
+
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│ Telegram │────▶│  rag-api │────▶│ Pinecone │     │  LiteLLM │
+│  Bots    │     │ (FastAPI)│     │  Vector  │     │   Proxy  │
+│(polling) │     │          │     │    DB    │     │ (billing)│
+└──────────┘     ├──────────┤     └──────────┘     └──────────┘
+                 │PostgreSQL│
+┌──────────┐     │(tenants, │     ┌──────────┐
+│Dashboard │────▶│memories) │     │   Zen    │
+│ TanStack │     └──────────┘     │   API    │
+│  Start   │                      │   (LLM)  │
+└──────────┘                      └──────────┘
+```
+
+**Message flow:** User → Telegram → rag-api → tenant lookup → Pinecone query (per-tenant namespace) + memory → system prompt → LiteLLM (per-tenant key) → Zen API → sanitize → reply → extract fact → save memory
 
 ## Stack
 
-| Layer | Tool |
+| Layer | Technology |
 |---|---|
-| Backend | FastAPI (rag-api) |
-| Vector DB | Pinecone (single index, per-tenant namespace) |
-| Embeddings | fastembed BAAI/bge-small-en-v1.5 (384d) |
-| LLM Proxy | LiteLLM (per-tenant virtual keys) |
+| Backend | FastAPI (Python) |
+| Vector DB | Pinecone (single index, namespaced per tenant) |
+| Embeddings | fastembed `BAAI/bge-small-en-v1.5` (384d) |
+| LLM Proxy | LiteLLM with per-tenant virtual keys |
 | LLM | Zen API (OpenAI-compatible) |
-| DB | PostgreSQL (tenants, memories) |
-| Bots | Polling containers or Telegram webhooks |
+| Database | PostgreSQL (tenants, users, memories) |
+| Chat bots | Telegram (polling or webhook) |
 | Dashboard | TanStack Start, shadcn/ui, Recharts |
+| Auth | Google Sign-In + JWT |
 
 ## Quick Start
 
 ```bash
-cp .env.example .env   # fill in secrets
+cp .env.example .env    # fill in secrets
 docker compose up -d
 open http://localhost:8080
 ```
 
-## Message Flow
+### Required secrets
 
-```
-User → Telegram bot → rag-api → tenant lookup → Pinecone query (namespace) + memory fetch
-→ system prompt (RAG context + memories) → LiteLLM (virtual key) → Zen API → sanitize → reply
-→ extract fact → save to memory (max 3 per user) → Telegram
-```
+| Variable | Description |
+|---|---|
+| `OPENCODE_ZEN_API_KEY` | LLM provider API key |
+| `PINECONE_API_KEY` | Pinecone vector database key |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `GOOGLE_ADMIN_EMAILS` | Comma-separated admin emails |
 
 ## Tenant Isolation
 
-| Layer | How |
+| Layer | Mechanism |
 |---|---|
-| RAG | Pinecone namespace |
-| Memory | `memories` table filtered by tenant_id + user_id |
+| RAG | Pinecone namespace per tenant |
+| Memory | DB queries filtered by `tenant_id + user_id` |
 | Billing | LiteLLM virtual key per tenant |
-| Bot | Bot token → tenant via DB lookup |
+| Bot | Bot token → tenant lookup at request time |
+| Auth | Tenant-scoped JWT, no cross-tenant API access |
 
-## Provision a Client
+## Provisioning a Client
 
-**Dashboard**: Admin → Tenants → New Tenant → company name + bot token + plan → get credentials card.
+**Via dashboard:** Admin → Tenants → New Tenant → fill in company name, bot token, admin email, plan.
 
-**Webhook** (production): `curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<DOMAIN>/webhook/telegram/<TOKEN>"`
+**Via API:**
+```bash
+curl -X POST http://localhost:8000/api/admin/provision \
+  -H "Authorization: Bearer <admin-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"companyName":"Acme Corp","telegramBotToken":"123:ABC","plan":"starter","adminEmail":"admin@acme.com"}'
+```
 
-**Polling bot** (dev): add a new `telegram-bot-*` service to docker-compose.yml with the new `BOT_TOKEN_C`.
+After provisioning, add a polling bot container for the new token (see `telegram-bot-c` in `docker-compose.yml`).
 
-## Key API Endpoints
+## Dashboard
+
+Accessible at `http://localhost:8080`. Sign in with Google.
+
+- **Tenant users** see their workspace overview, API keys, usage, chatbot config, logs, and settings.
+- **Admins** additionally see all tenants, global usage, system health, and audit logs.
+
+## API Overview
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /webhook/telegram` | Polling bot (JSON: `{bot_token, message, user_id}`) |
+| `POST /webhook/telegram` | Polling bot endpoint |
 | `POST /webhook/telegram/{token}` | Telegram webhook |
-| `POST /documents/upload` | Upload PDF (multipart) |
-| `GET /api/tenant/{summary,usage,workspace,chatbot,keys,logs,knowledge,conversations}` | Tenant data |
+| `POST /documents/upload` | Upload PDF to knowledge base |
+| `GET /auth/me` | Current user info |
+| `GET /api/tenant/*` | Tenant-scoped data |
 | `PUT /api/tenant/{workspace,chatbot}` | Update tenant config |
-| `GET|POST /api/admin/{tenants,health,audit,provision}` | Admin operations |
+| `GET /api/admin/*` | Admin operations |
+| `POST /api/admin/provision` | Create new tenant |
 
-## Project Tree
+## Remote Access via Tailscale
+
+```bash
+tailscale serve --bg --https 443 localhost:8080
+tailscale serve --bg --https 8443 localhost:8000
+```
+
+Set environment variables:
+```
+FRONTEND_URL=https://<machine>.ts.net
+GOOGLE_REDIRECT_URI=https://<machine>.ts.net:8443/auth/google/callback
+VITE_CLIENT_API_URL=https://<machine>.ts.net:8443
+```
+
+Register the callback URL in Google Cloud Console under Authorized redirect URIs.
+
+## Project Structure
 
 ```
-├── docker-compose.yml
-├── rag-api/app/          # FastAPI: routers/, services/, models.py, migrate.py
-├── telegram/bot.py       # Polling bot (one per token)
-└── tenantai-hub/         # Dashboard (TanStack Start)
+├── docker-compose.yml       # All services
+├── rag-api/                 # FastAPI backend
+│   └── app/
+│       ├── routers/         # API endpoints
+│       ├── services/        # RAG, memory, embeddings, sanitize
+│       ├── models.py        # DB models
+│       ├── migrate.py       # Schema migration
+│       └── config.py        # Environment config
+├── telegram/                # Polling bot
+│   └── bot.py
+├── tenantai-hub/            # Dashboard
+│   └── src/
+│       ├── routes/          # Page components
+│       ├── components/      # UI components
+│       └── lib/             # API client, auth context
+└── changelog/
 ```
 
-## Troubleshooting
+## License
 
-**Bot silent?** `docker compose ps | grep telegram` — is the polling container running? Does the tenant exist (`/api/admin/tenants`)?
-
-**"I don't have that information"?** Upload a PDF via Dashboard → Chatbot Config → Knowledge base.
-
-**Markdown showing as raw text?** Sanitizer in `rag-api/app/services/sanitize.py` converts `**bold**` → `<b>bold</b>`.
-
-**Memory not saving?** Check `concierge.memories` table — `docker compose exec rag-api python3 -c "from app.database import SessionLocal; s=SessionLocal(); print(s.execute('SELECT count(*) FROM concierge.memories').scalar())"`
+MIT

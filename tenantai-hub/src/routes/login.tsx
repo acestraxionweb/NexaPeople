@@ -31,7 +31,8 @@ function LoginPage() {
   }, [token]);
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8000/auth/google/login";
+    const apiUrl = import.meta.env.VITE_CLIENT_API_URL || "http://localhost:8000";
+    window.location.href = `${apiUrl}/auth/google/login`;
   };
 
   return (

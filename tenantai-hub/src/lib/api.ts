@@ -1,5 +1,5 @@
 const SSR_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const CLIENT_BASE = "http://localhost:8000";
+const CLIENT_BASE = import.meta.env.VITE_CLIENT_API_URL || "http://localhost:8000";
 const BASE = typeof window === "undefined" ? SSR_BASE : CLIENT_BASE;
 
 class ApiError extends Error {

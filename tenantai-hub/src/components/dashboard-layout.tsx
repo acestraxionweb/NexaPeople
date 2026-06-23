@@ -29,7 +29,7 @@ export function DashboardLayout({
       <AppSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader title={title} subtitle={subtitle} onMenuClick={() => setSheetOpen(true)} />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 mx-auto w-full max-w-7xl">
           {actions && (
             <div className="mb-5 flex items-center justify-end gap-2">{actions}</div>
           )}
@@ -97,7 +97,7 @@ export function StatCard({
 }) {
   const positive = delta?.startsWith("+");
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="rounded-lg border border-border bg-card p-4 md:p-5">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-2 flex items-baseline gap-2">
         <div className="text-2xl font-semibold tracking-tight">{value}</div>

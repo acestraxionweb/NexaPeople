@@ -153,12 +153,12 @@ function TenantsPage() {
           <thead className="bg-muted/50 text-xs text-muted-foreground">
             <tr>
               <th className="text-left font-medium px-5 py-3">Tenant</th>
-              <th className="text-left font-medium">Plan</th>
-              <th className="text-left font-medium">Status</th>
+              <th className="text-left font-medium hidden md:table-cell">Plan</th>
+              <th className="text-left font-medium hidden md:table-cell">Status</th>
               <th className="text-right font-medium">Users</th>
               <th className="text-right font-medium">Requests</th>
               <th className="text-right font-medium">Cost</th>
-              <th className="text-left font-medium pl-6">Created</th>
+              <th className="text-left font-medium pl-6 hidden lg:table-cell">Created</th>
               <th className="px-5"></th>
             </tr>
           </thead>
@@ -174,8 +174,8 @@ function TenantsPage() {
                     <div className="font-medium">{t.companyName}</div>
                     <div className="text-[11px] text-muted-foreground font-mono">{t.id}</div>
                   </td>
-                  <td className="text-muted-foreground capitalize">{t.plan}</td>
-                  <td>
+                  <td className="text-muted-foreground capitalize hidden md:table-cell">{t.plan}</td>
+                  <td className="hidden md:table-cell">
                     <span className={"inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium " + (statusTone[t.status] ?? "bg-muted text-muted-foreground")}>
                       {t.status}
                     </span>
@@ -183,7 +183,7 @@ function TenantsPage() {
                   <td className="text-right tabular-nums">{t.users}</td>
                   <td className="text-right tabular-nums">{t.requests.toLocaleString()}</td>
                   <td className="text-right tabular-nums">${t.cost.toFixed(2)}</td>
-                  <td className="text-muted-foreground pl-6">{t.created}</td>
+                  <td className="text-muted-foreground pl-6 hidden lg:table-cell">{t.created}</td>
                   <td className="px-5 text-right">
                     <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                   </td>

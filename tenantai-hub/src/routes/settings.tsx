@@ -53,7 +53,7 @@ function SettingsPage() {
       }
     >
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section className="rounded-lg border border-border bg-card p-4 md:p-6">
           <h2 className="text-sm font-semibold">Workspace</h2>
           <div className="mt-4 space-y-4">
             <div className="space-y-2">
@@ -71,7 +71,7 @@ function SettingsPage() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section className="rounded-lg border border-border bg-card p-4 md:p-6">
           <h2 className="text-sm font-semibold">Security</h2>
           <div className="mt-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -98,7 +98,7 @@ function SettingsPage() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-border bg-card p-6">
+        <section className="rounded-lg border border-border bg-card p-4 md:p-6">
           <h2 className="text-sm font-semibold">Plan</h2>
           <div className="mt-4 flex items-center justify-between">
             <div>

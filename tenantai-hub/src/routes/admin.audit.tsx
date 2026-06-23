@@ -22,7 +22,7 @@ function AuditPage() {
             <tr>
               <th className="text-left font-medium px-5 py-3">Timestamp</th>
               <th className="text-left font-medium">Tenant</th>
-              <th className="text-left font-medium">Actor</th>
+              <th className="text-left font-medium hidden md:table-cell">Actor</th>
               <th className="text-left font-medium">Event</th>
               <th className="text-left font-medium">IP</th>
             </tr>
@@ -39,7 +39,7 @@ function AuditPage() {
                     {new Date(a.timestamp).toLocaleString()}
                   </td>
                   <td className="font-medium">{a.tenant}</td>
-                  <td className="text-muted-foreground">{a.actor}</td>
+                  <td className="text-muted-foreground hidden md:table-cell">{a.actor}</td>
                   <td>
                     <code className="font-mono text-xs bg-muted/60 px-2 py-0.5 rounded">{a.event}</code>
                   </td>

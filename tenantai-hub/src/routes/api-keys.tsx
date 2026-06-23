@@ -33,8 +33,8 @@ function ApiKeysPage() {
             <tr>
               <th className="text-left font-medium px-5 py-3">Name</th>
               <th className="text-left font-medium">Key</th>
-              <th className="text-left font-medium">Created</th>
-              <th className="text-left font-medium">Last used</th>
+              <th className="text-left font-medium hidden md:table-cell">Created</th>
+              <th className="text-left font-medium hidden md:table-cell">Last used</th>
               <th className="text-left font-medium">Status</th>
               <th className="text-right font-medium px-5">Actions</th>
             </tr>
@@ -51,8 +51,8 @@ function ApiKeysPage() {
                   <td>
                     <code className="font-mono text-xs bg-muted/60 px-2 py-1 rounded">{k.key}</code>
                   </td>
-                  <td className="text-muted-foreground">{k.created}</td>
-                  <td className="text-muted-foreground">{k.lastUsed}</td>
+                  <td className="text-muted-foreground hidden md:table-cell">{k.created}</td>
+                  <td className="text-muted-foreground hidden md:table-cell">{k.lastUsed}</td>
                   <td>
                     <span className={
                       "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium " +
@@ -82,7 +82,7 @@ function ApiKeysPage() {
         </table>
       </div>
 
-      <div className="mt-6 rounded-lg border border-border bg-card p-5">
+      <div className="mt-6 rounded-lg border border-border bg-card p-4 md:p-5">
         <div className="text-sm font-semibold">Security tips</div>
         <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground list-disc pl-5">
           <li>Rotate production keys every 90 days.</li>

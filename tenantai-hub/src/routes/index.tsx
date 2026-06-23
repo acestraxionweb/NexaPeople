@@ -101,7 +101,7 @@ function Overview() {
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
+        <div className="rounded-lg border border-border bg-card p-4 md:p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold">Requests over time</div>
@@ -111,7 +111,7 @@ function Overview() {
               <ArrowUpRight className="h-3 w-3" />
             </span>
           </div>
-          <div className="mt-4 h-64">
+          <div className="mt-4 h-48 md:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={isAdmin ? (adminUsageData?.series ?? []) : (usageData ?? [])} margin={{ left: -10, right: 8, top: 8 }}>
                 <defs>
@@ -137,7 +137,7 @@ function Overview() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-5">
+        <div className="rounded-lg border border-border bg-card p-4 md:p-5">
           <div className="text-sm font-semibold">Company</div>
           <div className="text-xs text-muted-foreground mt-1">{tData?.company ?? "—"}</div>
           {!isAdmin && (
@@ -169,14 +169,14 @@ function Overview() {
       </div>
 
       {isAdmin && adminTenants && (
-        <div className="mt-6 rounded-lg border border-border bg-card p-5">
+        <div className="mt-6 rounded-lg border border-border bg-card p-4 md:p-5">
           <div className="text-sm font-semibold mb-3">Tenants</div>
           <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b border-border">
                 <th className="text-left font-medium py-2">Tenant</th>
-                <th className="text-left font-medium">Plan</th>
+                <th className="text-left font-medium hidden md:table-cell">Plan</th>
                 <th className="text-right font-medium">Requests</th>
                 <th className="text-right font-medium">Tokens</th>
                 <th className="text-right font-medium">Cost</th>
@@ -186,7 +186,7 @@ function Overview() {
               {adminTenants.tenants.map((t: any) => (
                 <tr key={t.id} className="border-b border-border/60 last:border-0">
                   <td className="py-2.5">{t.companyName}</td>
-                  <td className="text-muted-foreground">{t.plan}</td>
+                  <td className="text-muted-foreground hidden md:table-cell">{t.plan}</td>
                   <td className="text-right tabular-nums">{t.requests.toLocaleString()}</td>
                   <td className="text-right tabular-nums">{(t.tokens ?? 0).toLocaleString()}</td>
                   <td className="text-right tabular-nums">${t.cost.toFixed(2)}</td>

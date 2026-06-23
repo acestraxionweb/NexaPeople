@@ -34,9 +34,9 @@ function HealthPage() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
+            <div className="rounded-lg border border-border bg-card p-4 md:p-5 lg:col-span-2">
               <div className="text-sm font-semibold">API latency (p95)</div>
-              <div className="mt-3 h-64">
+              <div className="mt-3 h-48 md:h-64">
                 <ResponsiveContainer>
                   <AreaChart data={latencyData ?? []} margin={{ left: -10, right: 8 }}>
                     <defs>
@@ -55,7 +55,7 @@ function HealthPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-4 md:p-5">
               <div className="text-sm font-semibold">Regions</div>
               <ul className="mt-4 space-y-3">
                 {data?.regions?.map((r: any) => (

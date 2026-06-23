@@ -64,9 +64,9 @@ function UsagePage() {
         <div className="mt-6 text-center text-muted-foreground text-sm">No usage data available</div>
       ) : (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-lg border border-border bg-card p-5">
+          <div className="rounded-lg border border-border bg-card p-4 md:p-5">
             <div className="text-sm font-semibold">Requests / day</div>
-            <div className="mt-3 h-64">
+            <div className="mt-3 h-48 md:h-64">
               <ResponsiveContainer>
                 <BarChart data={chartData} margin={{ left: -10, right: 8 }}>
                   <CartesianGrid stroke="var(--border)" vertical={false} />
@@ -79,9 +79,9 @@ function UsagePage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-border bg-card p-5">
+          <div className="rounded-lg border border-border bg-card p-4 md:p-5">
             <div className="text-sm font-semibold">Cost trend</div>
-            <div className="mt-3 h-64">
+            <div className="mt-3 h-48 md:h-64">
               <ResponsiveContainer>
                 <LineChart data={chartData} margin={{ left: -10, right: 8 }}>
                   <CartesianGrid stroke="var(--border)" vertical={false} />

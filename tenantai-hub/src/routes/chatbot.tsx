@@ -104,7 +104,7 @@ function ChatbotPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <section className="rounded-lg border border-border bg-card p-6">
+          <section className="rounded-lg border border-border bg-card p-4 md:p-6">
             <h2 className="text-sm font-semibold">Model & behavior</h2>
             <p className="text-xs text-muted-foreground">Define how your bot responds.</p>
 
@@ -147,7 +147,7 @@ function ChatbotPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-border bg-card p-6">
+          <section className="rounded-lg border border-border bg-card p-4 md:p-6">
             <h2 className="text-sm font-semibold">Telegram webhook</h2>
             <p className="text-xs text-muted-foreground">Forward Telegram updates to your bot endpoint.</p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -162,7 +162,7 @@ function ChatbotPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-border bg-card p-6">
+          <section className="rounded-lg border border-border bg-card p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold">Recent conversations</h2>
@@ -189,7 +189,7 @@ function ChatbotPage() {
         </div>
 
         <aside className="space-y-6">
-          <section className="rounded-lg border border-border bg-card p-6">
+          <section className="rounded-lg border border-border bg-card p-4 md:p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">Knowledge base</h2>
               <Button

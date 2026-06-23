@@ -57,8 +57,8 @@ function LogsPage() {
           <thead className="bg-muted/50 text-xs text-muted-foreground">
             <tr>
               <th className="text-left font-medium px-5 py-3">Timestamp</th>
-              <th className="text-left font-medium">Actor</th>
-              <th className="text-left font-medium">Action</th>
+              <th className="text-left font-medium hidden md:table-cell">Actor</th>
+              <th className="text-left font-medium hidden md:table-cell">Action</th>
               <th className="text-left font-medium">Resource</th>
               <th className="text-left font-medium">Status</th>
               <th className="text-right font-medium px-5">Latency</th>
@@ -75,8 +75,8 @@ function LogsPage() {
                   <td className="px-5 py-2.5 text-muted-foreground tabular-nums text-xs">
                     {new Date(l.timestamp).toLocaleString()}
                   </td>
-                  <td className="font-medium">{l.actor}</td>
-                  <td className="text-muted-foreground">{l.action}</td>
+                  <td className="font-medium hidden md:table-cell">{l.actor}</td>
+                  <td className="text-muted-foreground hidden md:table-cell">{l.action}</td>
                   <td><code className="font-mono text-xs">{l.resource}</code></td>
                   <td>
                     <span className={"inline-flex rounded px-2 py-0.5 text-[11px] font-medium " + (statusTone[l.status] ?? "bg-muted text-muted-foreground")}>

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text, Boolean
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database import Base
 
 
@@ -18,6 +18,7 @@ class Tenant(Base):
     status = Column(String, nullable=False, default="active")
     plan = Column(String, nullable=False, default="starter")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    chatbot_config = Column(JSONB, nullable=True)
 
 
 class Memory(Base):

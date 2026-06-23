@@ -28,6 +28,7 @@ MIGRATIONS = [
         );
     """),
     text("CREATE INDEX IF NOT EXISTS idx_tenant_users_email ON concierge.tenant_users(email);"),
+    text("ALTER TABLE concierge.tenants ADD COLUMN IF NOT EXISTS chatbot_config JSONB;"),
 ]
 
 

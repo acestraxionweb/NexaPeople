@@ -27,6 +27,7 @@ function ChatbotPage() {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [temp, setTemp] = useState([0.7]);
   const [maxTok, setMaxTok] = useState([1024]);
 
@@ -65,13 +66,31 @@ function ChatbotPage() {
     }
   };
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await tenant.updateChatbot({
+        model: (document.getElementById("model-select") as HTMLSelectElement)?.value || config?.model || "deepseek-v4-flash-free",
+        temperature: temp[0],
+        maxTokens: maxTok[0],
+        systemPrompt: (document.getElementById("sys-prompt") as HTMLTextAreaElement)?.value || "",
+      });
+      toast.success("Configuration saved");
+      queryClient.invalidateQueries({ queryKey: ["chatbot-config"] });
+    } catch (err: any) {
+      toast.error(err.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <DashboardLayout
       title="Chatbot Configuration"
       subtitle="Tune your assistant, manage knowledge, and connect channels"
       actions={
-        <Button size="sm" onClick={() => toast.success("Configuration saved")}>
-          Save changes
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save changes"}
         </Button>
       }
     >
@@ -93,7 +112,7 @@ function ChatbotPage() {
               <div className="space-y-2">
                 <Label>Model</Label>
                 <Select defaultValue={config?.model ?? "deepseek-v4-flash-free"}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="model-select"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="deepseek-v4-flash-free">deepseek-v4-flash-free</SelectItem>
                     <SelectItem value="mimo-v2.5-free">mimo-v2.5-free</SelectItem>
@@ -120,8 +139,9 @@ function ChatbotPage() {
             <div className="mt-5 space-y-2">
               <Label>System prompt</Label>
               <Textarea
+                id="sys-prompt"
                 rows={6}
-                defaultValue={config?.systemPrompt ?? "You are a helpful assistant."}
+                defaultValue={config?.systemPrompt ?? ""}
                 className="font-mono text-xs"
               />
             </div>

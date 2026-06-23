@@ -1,7 +1,7 @@
 import time
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from app.services.tenant_service import get_tenant
@@ -51,7 +51,7 @@ def _build_context(namespace: str, question: str) -> str:
     return "\n\n".join(chunks)
 
 
-def _build_system_prompt(company_name: str, context: str, memories: list[str] | None = None) -> str:
+def _build_system_prompt(company_name: str, context: str, memories: list[str] | None = None, custom_prompt: str = "") -> str:
     memory_block = ""
     if memories:
         memory_block = "\nWhat I know about this person:\n" + "\n".join(f"- {m}" for m in memories)
@@ -66,7 +66,10 @@ def _build_system_prompt(company_name: str, context: str, memories: list[str] | 
             "has filled me in.\" "
             "Never invent or guess. Be upfront that you just don't know yet."
         )
-        return base + memory_block
+        result = base + memory_block
+        if custom_prompt:
+            result += "\n\n" + custom_prompt
+        return result
 
     parts = [
         f"You are {company_name}'s AI concierge — you represent the company. "
@@ -101,11 +104,20 @@ def _build_system_prompt(company_name: str, context: str, memories: list[str] | 
         "Company knowledge:\n" + context,
     ]
     prompt = "\n\n".join(parts)
-    return prompt + memory_block
+    result = prompt + memory_block
+    if custom_prompt:
+        result += "\n\n" + custom_prompt
+    return result
+
+
+def _extract_and_save_memory(tenant_id: str, user_id: str, message: str, reply: str, virtual_key: str):
+    fact = extract_fact(message, reply, virtual_key)
+    if fact:
+        add_memory(tenant_id, user_id, fact)
 
 
 @router.post("/webhook/telegram", response_model=WebhookResponse)
-def webhook_telegram(payload: WebhookPayload):
+def webhook_telegram(payload: WebhookPayload, background_tasks: BackgroundTasks):
     _check_rate_limit(payload.bot_token)
     tenant = get_tenant(payload.bot_token)
     if not tenant:
@@ -119,17 +131,27 @@ def webhook_telegram(payload: WebhookPayload):
     else:
         context = ""
 
+    cfg = tenant.chatbot_config or {}
+    custom_prompt = cfg.get("systemPrompt", "")
+
     memories = []
     if payload.user_id:
         memories = get_memories(str(tenant.id), payload.user_id)
 
-    system_prompt = _build_system_prompt(tenant.company_name, context, memories)
-    reply = sanitize_reply(chat_completion(payload.message, tenant.litellm_virtual_key, system_prompt=system_prompt))
+    system_prompt = _build_system_prompt(tenant.company_name, context, memories, custom_prompt)
+    reply = sanitize_reply(chat_completion(
+        payload.message, tenant.litellm_virtual_key,
+        model=cfg.get("model", "deepseek-v4-flash-free"),
+        system_prompt=system_prompt,
+        user=payload.user_id,
+        temperature=cfg.get("temperature"),
+        max_tokens=cfg.get("maxTokens"),
+    ))
+    if not reply or not reply.strip():
+        reply = "Sorry, I ran into an issue generating a response. Please try rephrasing your question."
 
     if payload.user_id:
-        fact = extract_fact(payload.message, reply, tenant.litellm_virtual_key)
-        if fact:
-            add_memory(str(tenant.id), payload.user_id, fact)
+        background_tasks.add_task(_extract_and_save_memory, str(tenant.id), payload.user_id, payload.message, reply, tenant.litellm_virtual_key)
 
     return WebhookResponse(
         tenant=tenant.pinecone_namespace,

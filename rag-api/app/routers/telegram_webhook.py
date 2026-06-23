@@ -1,10 +1,10 @@
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from app.database import SessionLocal
 from app.models import Tenant
-from app.routers.telegram import _build_context, _build_system_prompt, _check_rate_limit
-from app.services.memory_service import get_memories, add_memory, extract_fact
+from app.routers.telegram import _build_context, _build_system_prompt, _check_rate_limit, _extract_and_save_memory
+from app.services.memory_service import get_memories
 from app.services.sanitize import sanitize_reply
 from app.litellm_service import chat_completion
 
@@ -14,7 +14,7 @@ TELEGRAM_API = "https://api.telegram.org"
 
 
 @router.post("/webhook/telegram/{bot_token}")
-def telegram_webhook(bot_token: str, update: dict):
+def telegram_webhook(bot_token: str, update: dict, background_tasks: BackgroundTasks):
     _check_rate_limit(bot_token)
 
     db = SessionLocal()
@@ -52,18 +52,28 @@ def telegram_webhook(bot_token: str, update: dict):
             )
         return {"ok": True}
 
+    cfg = tenant.chatbot_config or {}
+    custom_prompt = cfg.get("systemPrompt", "")
+
     if tenant.pinecone_namespace:
         context = _build_context(tenant.pinecone_namespace, text)
     else:
         context = ""
 
     memories = get_memories(str(tenant.id), user_id)
-    system_prompt = _build_system_prompt(tenant.company_name, context, memories)
-    reply = sanitize_reply(chat_completion(text, tenant.litellm_virtual_key, system_prompt=system_prompt))
+    system_prompt = _build_system_prompt(tenant.company_name, context, memories, custom_prompt)
+    reply = sanitize_reply(chat_completion(
+        text, tenant.litellm_virtual_key,
+        model=cfg.get("model", "deepseek-v4-flash-free"),
+        system_prompt=system_prompt,
+        user=user_id,
+        temperature=cfg.get("temperature"),
+        max_tokens=cfg.get("maxTokens"),
+    ))
+    if not reply or not reply.strip():
+        reply = "Sorry, I ran into an issue generating a response. Please try rephrasing your question."
 
-    fact = extract_fact(text, reply, tenant.litellm_virtual_key)
-    if fact:
-        add_memory(str(tenant.id), user_id, fact)
+    background_tasks.add_task(_extract_and_save_memory, str(tenant.id), user_id, text, reply, tenant.litellm_virtual_key)
 
     with httpx.Client() as client:
         resp = client.post(

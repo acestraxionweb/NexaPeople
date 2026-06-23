@@ -1,7 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { tenant } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState } from "react";
 
 export const Route = createFileRoute("/logs")({
   head: () => ({ meta: [{ title: "Logs · Nexus AI" }] }),
@@ -15,14 +23,35 @@ const statusTone: Record<string, string> = {
   "500": "bg-destructive/15 text-destructive",
 };
 
+const LIMIT_OPTIONS = [50, 100, 200];
+
 function LogsPage() {
+  const queryClient = useQueryClient();
+  const [limit, setLimit] = useState(50);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["tenant-logs"],
-    queryFn: () => tenant.logs(),
+    queryKey: ["tenant-logs", limit],
+    queryFn: () => tenant.logs(limit),
   });
 
   return (
     <DashboardLayout title="Activity logs" subtitle="API calls, auth events, and bot activity">
+      <div className="flex items-center justify-end mb-3 gap-2">
+        <span className="text-xs text-muted-foreground">Show</span>
+        <Select
+          value={String(limit)}
+          onValueChange={(v) => { setLimit(Number(v)); queryClient.invalidateQueries({ queryKey: ["tenant-logs"] }); }}
+        >
+          <SelectTrigger className="w-20 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LIMIT_OPTIONS.map((n) => (
+              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs text-muted-foreground">

@@ -157,13 +157,22 @@ def update_workspace(body: dict, tenant: Tenant = Depends(_get_tenant_combined))
         db.close()
 
 
+DEFAULT_CHATBOT_CONFIG = {
+    "model": "deepseek-v4-flash-free",
+    "temperature": 0.7,
+    "maxTokens": 1024,
+    "systemPrompt": "",
+}
+
+
 @router.get("/tenant/chatbot")
 def chatbot_config(tenant: Tenant = Depends(_get_tenant_combined)):
+    cfg = tenant.chatbot_config or {}
     return {
-        "model": "deepseek-v4-flash-free",
-        "temperature": 0.7,
-        "maxTokens": 1024,
-        "systemPrompt": f"You are the AI assistant for {tenant.company_name}.",
+        "model": cfg.get("model", DEFAULT_CHATBOT_CONFIG["model"]),
+        "temperature": cfg.get("temperature", DEFAULT_CHATBOT_CONFIG["temperature"]),
+        "maxTokens": cfg.get("maxTokens", DEFAULT_CHATBOT_CONFIG["maxTokens"]),
+        "systemPrompt": cfg.get("systemPrompt", DEFAULT_CHATBOT_CONFIG["systemPrompt"]),
         "telegramWebhook": "",
         "botToken": tenant.telegram_bot_token[:12] + "...",
     }
@@ -171,7 +180,18 @@ def chatbot_config(tenant: Tenant = Depends(_get_tenant_combined)):
 
 @router.put("/tenant/chatbot")
 def update_chatbot(body: dict, tenant: Tenant = Depends(_get_tenant_combined)):
-    return {"ok": True}
+    db = SessionLocal()
+    try:
+        t = db.query(Tenant).get(tenant.id)
+        cfg = dict(t.chatbot_config or {})
+        for key in ("model", "temperature", "maxTokens", "systemPrompt"):
+            if key in body:
+                cfg[key] = body[key]
+        t.chatbot_config = cfg
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
 
 
 @router.get("/tenant/keys")
@@ -203,13 +223,13 @@ def tenant_keys(tenant: Tenant = Depends(_get_tenant_combined)):
 
 
 @router.get("/tenant/logs")
-def tenant_logs(tenant: Tenant = Depends(_get_tenant_combined)):
+def tenant_logs(tenant: Tenant = Depends(_get_tenant_combined), limit: int = 50):
     logs = _tenant_logs(tenant, days_back=7)
     return {
         "logs": [
             {
                 "timestamp": e.get("startTime", ""),
-                "actor": e.get("user", e.get("end_user", "system")),
+                "actor": e.get("user", ""),
                 "action": e.get("call_type", "chat.completion"),
                 "resource": e.get("model", "unknown"),
                 "status": e.get("status", 200),
@@ -217,7 +237,7 @@ def tenant_logs(tenant: Tenant = Depends(_get_tenant_combined)):
                 "tokens": e.get("total_tokens", 0),
                 "spend": round(e.get("spend", 0), 6),
             }
-            for e in logs[-50:]
+            for e in logs[:limit]
         ]
     }
 
@@ -249,7 +269,7 @@ def tenant_conversations(tenant: Tenant = Depends(_get_tenant_combined)):
     logs = _tenant_logs(tenant, days_back=7)
     by_user = defaultdict(lambda: {"messages": 0, "lastMessage": "", "timestamp": ""})
     for e in logs:
-        uid = e.get("user") or e.get("end_user") or e.get("session_id") or "anonymous"
+        uid = e.get("user", "")
         by_user[uid]["messages"] += 1
         msg = (e.get("messages") or ["..."])[-1]
         if isinstance(msg, dict):
@@ -307,7 +327,7 @@ def admin_tenants(_admin: dict = Depends(_require_admin)):
         by_tenant[tid]["requests"] += 1
         by_tenant[tid]["tokens"] += e.get("total_tokens", 0)
         by_tenant[tid]["cost"] += e.get("spend", 0)
-        uid = e.get("user") or e.get("end_user") or ""
+        uid = e.get("user", "")
         if uid:
             by_tenant[tid]["users"].add(uid)
 

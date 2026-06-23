@@ -60,7 +60,7 @@ export const tenant = {
   updateChatbot: (data: Record<string, unknown>) =>
     request("/api/tenant/chatbot", { method: "PUT", body: data }),
   keys: () => request("/api/tenant/keys"),
-  logs: () => request("/api/tenant/logs"),
+  logs: (limit?: number) => request(`/api/tenant/logs${limit ? `?limit=${limit}` : ""}`),
   knowledge: () => request("/api/tenant/knowledge"),
   conversations: () => request("/api/tenant/conversations"),
 };

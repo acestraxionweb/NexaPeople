@@ -365,6 +365,40 @@ def admin_health(_admin: dict = Depends(_require_admin)):
     }
 
 
+@router.get("/admin/usage")
+def admin_usage(_admin: dict = Depends(_require_admin)):
+    try:
+        all_logs = spend_logs(start_date=(datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d"))
+    except Exception:
+        all_logs = []
+
+    by_date = defaultdict(lambda: {"requests": 0, "tokens": 0, "cost": 0.0})
+    for e in all_logs:
+        ts = e.get("startTime", "")
+        day = ts[:10] if len(ts) >= 10 else datetime.utcnow().strftime("%Y-%m-%d")
+        by_date[day]["requests"] += 1
+        by_date[day]["tokens"] += e.get("total_tokens", 0)
+        by_date[day]["cost"] += e.get("spend", 0)
+
+    today = datetime.utcnow()
+    series = []
+    for i in range(30):
+        d = (today - timedelta(days=29 - i)).strftime("%Y-%m-%d")
+        row = by_date.get(d, {"requests": 0, "tokens": 0, "cost": 0.0})
+        series.append({"date": d, **row, "cost": round(row["cost"], 6)})
+
+    total_req = sum(s["requests"] for s in series)
+    total_tok = sum(s["tokens"] for s in series)
+    total_spend = sum(s["cost"] for s in series)
+
+    return {
+        "series": series,
+        "totalRequests": total_req,
+        "totalTokens": total_tok,
+        "totalCost": round(total_spend, 6),
+    }
+
+
 @router.get("/admin/audit")
 def admin_audit(_admin: dict = Depends(_require_admin)):
     try:

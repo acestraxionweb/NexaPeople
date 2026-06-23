@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout, StatCard } from "@/components/dashboard-layout";
-import { tenant } from "@/lib/api";
+import { useApp } from "@/lib/app-context";
+import { admin, tenant } from "@/lib/api";
 import {
   Bar,
   BarChart,
@@ -20,20 +21,34 @@ export const Route = createFileRoute("/usage")({
 });
 
 function UsagePage() {
-  const { data, isLoading } = useQuery({
+  const { role } = useApp();
+  const isAdmin = role === "admin";
+
+  const { data: tData, isLoading: tLoading } = useQuery({
     queryKey: ["tenant-usage"],
     queryFn: () => tenant.usage(),
-    select: (d) => d.series.map((s: any, i: number) => ({
-      day: `D${i + 1}`,
-      requests: s.requests,
-      tokens: s.tokens,
-      cost: s.cost,
-    })),
+    enabled: !isAdmin,
   });
 
-  const totalReq = data?.reduce((a: number, b: any) => a + b.requests, 0) ?? 0;
-  const totalTok = data?.reduce((a: number, b: any) => a + b.tokens, 0) ?? 0;
-  const totalCost = data?.reduce((a: number, b: any) => a + b.cost, 0) ?? 0;
+  const { data: aData, isLoading: aLoading } = useQuery({
+    queryKey: ["admin-usage"],
+    queryFn: () => admin.usage(),
+    enabled: isAdmin,
+  });
+
+  const raw = isAdmin ? aData : tData;
+  const chartData = raw?.series?.map((s: any, i: number) => ({
+    day: `D${i + 1}`,
+    requests: s.requests,
+    tokens: s.tokens,
+    cost: s.cost,
+  }));
+
+  const totalReq = chartData?.reduce((a: number, b: any) => a + b.requests, 0) ?? 0;
+  const totalTok = chartData?.reduce((a: number, b: any) => a + b.tokens, 0) ?? 0;
+  const totalCost = chartData?.reduce((a: number, b: any) => a + b.cost, 0) ?? 0;
+
+  const isLoading = isAdmin ? aLoading : tLoading;
 
   return (
     <DashboardLayout title="Usage" subtitle="Requests, tokens, and estimated cost">
@@ -45,7 +60,7 @@ function UsagePage() {
 
       {isLoading ? (
         <div className="mt-6 text-center text-muted-foreground text-sm">Loading usage data...</div>
-      ) : !data?.length ? (
+      ) : !chartData?.length ? (
         <div className="mt-6 text-center text-muted-foreground text-sm">No usage data available</div>
       ) : (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -53,7 +68,7 @@ function UsagePage() {
             <div className="text-sm font-semibold">Requests / day</div>
             <div className="mt-3 h-64">
               <ResponsiveContainer>
-                <BarChart data={data} margin={{ left: -10, right: 8 }}>
+                <BarChart data={chartData} margin={{ left: -10, right: 8 }}>
                   <CartesianGrid stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="day" fontSize={11} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
                   <YAxis fontSize={11} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
@@ -68,7 +83,7 @@ function UsagePage() {
             <div className="text-sm font-semibold">Cost trend</div>
             <div className="mt-3 h-64">
               <ResponsiveContainer>
-                <LineChart data={data} margin={{ left: -10, right: 8 }}>
+                <LineChart data={chartData} margin={{ left: -10, right: 8 }}>
                   <CartesianGrid stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="day" fontSize={11} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
                   <YAxis fontSize={11} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />

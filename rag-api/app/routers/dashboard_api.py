@@ -393,6 +393,7 @@ def admin_tenants(_admin: dict = Depends(_require_admin)):
             except Exception:
                 pass
 
+        tenant_cfg = t.chatbot_config or {}
         result.append({
             "id": str(t.id),
             "companyName": t.company_name,
@@ -406,6 +407,7 @@ def admin_tenants(_admin: dict = Depends(_require_admin)):
             "telegramBotToken": t.telegram_bot_token,
             "litellmKeyStatus": llm_status,
             "adminEmail": admin_emails.get(str(t.id), ""),
+            "modelAlias": tenant_cfg.get("modelAlias", "") or "",
         })
     return {"tenants": result}
 

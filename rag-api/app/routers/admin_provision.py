@@ -97,6 +97,7 @@ class UpdateTenantRequest(BaseModel):
     botToken: str | None = None
     litellmVirtualKey: str | None = None
     blockOldKey: bool = False
+    modelAlias: str | None = None
 
 
 class UpdateTenantResponse(BaseModel):
@@ -109,6 +110,7 @@ class UpdateTenantResponse(BaseModel):
     plan: str
     litellmVirtualKey: str | None
     oldKeyBlocked: bool
+    modelAlias: str
 
 
 @router.put("/tenants/{tenant_id}", response_model=UpdateTenantResponse)
@@ -140,6 +142,14 @@ def update_tenant(tenant_id: str, body: UpdateTenantRequest, _admin: dict = Depe
             t.litellm_virtual_key = body.litellmVirtualKey
             if body.blockOldKey and old_key:
                 old_key_blocked = block_key(old_key)
+
+        if body.modelAlias is not None:
+            cfg = dict(t.chatbot_config or {})
+            if body.modelAlias.strip():
+                cfg["modelAlias"] = body.modelAlias.strip()
+            else:
+                cfg.pop("modelAlias", None)
+            t.chatbot_config = cfg
 
         db.commit()
         db.refresh(t)
@@ -178,6 +188,7 @@ def update_tenant(tenant_id: str, body: UpdateTenantRequest, _admin: dict = Depe
             if admin_user:
                 admin_email = admin_user.email
 
+        tenant_cfg = t.chatbot_config or {}
         return UpdateTenantResponse(
             tenantId=str(t.id),
             companyName=t.company_name,
@@ -188,6 +199,7 @@ def update_tenant(tenant_id: str, body: UpdateTenantRequest, _admin: dict = Depe
             plan=t.plan,
             litellmVirtualKey=t.litellm_virtual_key,
             oldKeyBlocked=old_key_blocked,
+            modelAlias=tenant_cfg.get("modelAlias", "") or "",
         )
     finally:
         db.close()

@@ -66,15 +66,17 @@ def telegram_webhook(bot_token: str, update: dict, background_tasks: BackgroundT
 
     history = get_memories(str(tenant.id), user_id)
     system_prompt = _build_system_prompt(tenant.company_name, context, history, custom_prompt)
+    effective_model = cfg.get("modelAlias") or cfg.get("model", "deepseek-v4-flash-free")
     logger.info(
         "[%s] user=%s msg=%s model=%s history=%d context=%d",
         tenant.company_name, user_id, text,
-        cfg.get("model", "deepseek-v4-flash-free"),
+        effective_model,
         len(history), len(context),
     )
+    model_alias = cfg.get("modelAlias") or ""
     reply = sanitize_reply(chat_completion(
         text, tenant.litellm_virtual_key,
-        model=cfg.get("model", "deepseek-v4-flash-free"),
+        model=model_alias or cfg.get("model", "deepseek-v4-flash-free"),
         system_prompt=system_prompt,
         user=user_id,
         temperature=cfg.get("temperature"),

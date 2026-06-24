@@ -52,6 +52,7 @@ function TenantsPage() {
   const [editBlockOldKey, setEditBlockOldKey] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [showLlKey, setShowLlKey] = useState(false);
+  const [editModelAlias, setEditModelAlias] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-tenants"],
@@ -87,6 +88,7 @@ function TenantsPage() {
     setEditEmail(t.adminEmail);
     setEditLlKey("");
     setEditBlockOldKey(false);
+    setEditModelAlias(t.modelAlias ?? "");
     setShowToken(false);
     setShowLlKey(false);
   };
@@ -102,6 +104,7 @@ function TenantsPage() {
     if (editCompany !== orig.companyName) payload.companyName = editCompany;
     if (editToken !== orig.telegramBotToken) payload.botToken = editToken;
     if (editEmail !== orig.adminEmail) payload.adminEmail = editEmail;
+    if (editModelAlias !== (orig.modelAlias ?? "")) payload.modelAlias = editModelAlias;
     if (editLlKey) {
       payload.litellmVirtualKey = editLlKey;
       payload.blockOldKey = editBlockOldKey;
@@ -245,6 +248,7 @@ function TenantsPage() {
               <th className="text-left font-medium hidden md:table-cell">Bot Token</th>
               <th className="text-left font-medium hidden lg:table-cell">Admin Email</th>
               <th className="text-left font-medium hidden md:table-cell">LLM Key</th>
+              <th className="text-left font-medium hidden lg:table-cell">Model Alias</th>
               <th className="text-left font-medium hidden md:table-cell">Plan</th>
               <th className="text-left font-medium hidden md:table-cell">Status</th>
               <th className="text-right font-medium">Users</th>
@@ -348,6 +352,14 @@ function TenantsPage() {
                           )}
                         </div>
                       </td>
+                      <td className="px-5 py-3 hidden lg:table-cell">
+                        <Input
+                          value={editModelAlias}
+                          onChange={(e) => setEditModelAlias(e.target.value)}
+                          placeholder="Default (deepseek)"
+                          className="h-8 text-sm font-mono"
+                        />
+                      </td>
                       <td className="px-5 py-3 hidden md:table-cell capitalize">
                         <Select value={t.plan} onValueChange={() => {}} disabled>
                           <SelectTrigger className="h-8 text-sm">
@@ -416,6 +428,9 @@ function TenantsPage() {
                         >
                           {t.litellmKeyStatus}
                         </span>
+                      </td>
+                      <td className="px-5 py-3 hidden lg:table-cell text-muted-foreground text-xs font-mono">
+                        {t.modelAlias || "—"}
                       </td>
                       <td className="text-muted-foreground capitalize hidden md:table-cell">
                         {t.plan}

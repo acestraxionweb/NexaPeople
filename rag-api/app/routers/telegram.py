@@ -115,16 +115,18 @@ def webhook_telegram(payload: WebhookPayload, background_tasks: BackgroundTasks)
         history = get_memories(str(tenant.id), payload.user_id)
 
     system_prompt = _build_system_prompt(tenant.company_name, context, history, custom_prompt)
+    effective_model = cfg.get("modelAlias") or cfg.get("model", "deepseek-v4-flash-free")
     logger.info(
         "[%s] user=%s msg=%s model=%s history=%d context=%d",
         tenant.company_name, payload.user_id, payload.message,
-        cfg.get("model", "deepseek-v4-flash-free"),
+        effective_model,
         len(history), len(context),
     )
 
+    model_alias = cfg.get("modelAlias") or ""
     reply = sanitize_reply(chat_completion(
         payload.message, tenant.litellm_virtual_key,
-        model=cfg.get("model", "deepseek-v4-flash-free"),
+        model=model_alias or cfg.get("model", "deepseek-v4-flash-free"),
         system_prompt=system_prompt,
         user=payload.user_id,
         temperature=cfg.get("temperature"),

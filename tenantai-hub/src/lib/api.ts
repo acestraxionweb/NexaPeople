@@ -103,6 +103,7 @@ export const admin = {
       botToken?: string;
       litellmVirtualKey?: string;
       blockOldKey?: boolean;
+      modelAlias?: string;
     },
   ) => request(`/api/admin/tenants/${id}`, { method: "PUT", body: data }),
 };

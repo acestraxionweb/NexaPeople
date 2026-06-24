@@ -224,7 +224,8 @@ def update_chatbot(body: dict, tenant: Tenant = Depends(_get_tenant_combined)):
     try:
         t = db.query(Tenant).get(tenant.id)
         cfg = dict(t.chatbot_config or {})
-        for key in ("model", "temperature", "maxTokens", "systemPrompt", "preset"):
+        cfg["model"] = "deepseek-v4-flash-free"
+        for key in ("temperature", "maxTokens", "systemPrompt", "preset"):
             if key in body:
                 cfg[key] = body[key]
         t.chatbot_config = cfg
@@ -333,6 +334,20 @@ def tenant_conversations(tenant: Tenant = Depends(_get_tenant_combined)):
             for i, (uid, v) in enumerate(convs)
         ]
     }
+
+
+@router.delete("/tenant/conversations/{user_id}")
+def delete_conversation(user_id: str, tenant: Tenant = Depends(_get_tenant_combined)):
+    db = SessionLocal()
+    try:
+        db.execute(
+            text("DELETE FROM concierge.memories WHERE tenant_id = :tid AND user_id = :uid"),
+            {"tid": str(tenant.id), "uid": user_id},
+        )
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
 
 
 # --- Admin endpoints ---

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { tenant } from "@/lib/api";
-import { Copy, Plus, RotateCw, Trash2 } from "lucide-react";
+import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/api-keys")({
@@ -20,12 +20,7 @@ function ApiKeysPage() {
   return (
     <DashboardLayout
       title="API Keys"
-      subtitle="Manage credentials used by your chatbots and integrations"
-      actions={
-        <Button size="sm" onClick={() => toast.success("New key generated")}>
-          <Plus className="h-4 w-4 mr-1" /> Generate key
-        </Button>
-      }
+      subtitle="Your LLM API key is managed by the platform administrator"
     >
       <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
@@ -41,9 +36,17 @@ function ApiKeysPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td className="px-5 py-8 text-center text-muted-foreground" colSpan={6}>Loading...</td></tr>
+              <tr>
+                <td className="px-5 py-8 text-center text-muted-foreground" colSpan={6}>
+                  Loading...
+                </td>
+              </tr>
             ) : !data?.keys?.length ? (
-              <tr><td className="px-5 py-8 text-center text-muted-foreground" colSpan={6}>No keys found</td></tr>
+              <tr>
+                <td className="px-5 py-8 text-center text-muted-foreground" colSpan={6}>
+                  No keys found
+                </td>
+              </tr>
             ) : (
               data.keys.map((k: any) => (
                 <tr key={k.id} className="border-t border-border">
@@ -54,26 +57,34 @@ function ApiKeysPage() {
                   <td className="text-muted-foreground hidden md:table-cell">{k.created}</td>
                   <td className="text-muted-foreground hidden md:table-cell">{k.lastUsed}</td>
                   <td>
-                    <span className={
-                      "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium " +
-                      (k.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground")
-                    }>
-                      <span className={"h-1.5 w-1.5 rounded-full " + (k.status === "active" ? "bg-success" : "bg-muted-foreground")} />
+                    <span
+                      className={
+                        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                        (k.status === "active"
+                          ? "bg-success/15 text-success"
+                          : "bg-muted text-muted-foreground")
+                      }
+                    >
+                      <span
+                        className={
+                          "h-1.5 w-1.5 rounded-full " +
+                          (k.status === "active" ? "bg-success" : "bg-muted-foreground")
+                        }
+                      />
                       {k.status}
                     </span>
                   </td>
                   <td className="px-5 text-right">
-                    <div className="inline-flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => toast("Copied to clipboard")}>
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => toast.success("Key rotated")}>
-                        <RotateCw className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => toast.error("Key revoked")}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(k.key);
+                        toast("Copied");
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
                   </td>
                 </tr>
               ))

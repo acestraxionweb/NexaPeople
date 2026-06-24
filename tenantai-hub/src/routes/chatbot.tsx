@@ -1,19 +1,12 @@
 import { useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { tenant, uploadDocument } from "@/lib/api";
 import { FileText, Loader2, Trash2, Upload, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -89,7 +82,6 @@ function ChatbotPage() {
     setSaving(true);
     try {
       await tenant.updateChatbot({
-        model: (document.getElementById("model-select") as HTMLSelectElement)?.value || config?.model || "deepseek-v4-flash-free",
         temperature: temp[0],
         maxTokens: maxTok[0],
         systemPrompt: sysPrompt,
@@ -104,6 +96,15 @@ function ChatbotPage() {
     }
   };
 
+  const deleteConversation = useMutation({
+    mutationFn: (userId: string) => tenant.deleteConversation(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chatbot-conversations"] });
+      toast.success("Conversation deleted");
+    },
+    onError: (e: any) => toast.error(e.message || "Delete failed"),
+  });
+
   return (
     <DashboardLayout
       title="Chatbot Configuration"
@@ -114,13 +115,7 @@ function ChatbotPage() {
         </Button>
       }
     >
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".pdf"
-        className="hidden"
-        onChange={handleUpload}
-      />
+      <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handleUpload} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
@@ -131,27 +126,25 @@ function ChatbotPage() {
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Model</Label>
-                <Select defaultValue={config?.model ?? "deepseek-v4-flash-free"}>
-                  <SelectTrigger id="model-select"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="deepseek-v4-flash-free">deepseek-v4-flash-free</SelectItem>
-                    <SelectItem value="mimo-v2.5-free">mimo-v2.5-free</SelectItem>
-                    <SelectItem value="north-mini-code-free">north-mini-code-free</SelectItem>
-                    <SelectItem value="nemotron-3-ultra-free">nemotron-3-ultra-free</SelectItem>
-                    <SelectItem value="big-pickle">big-pickle</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md border border-border">
+                  deepseek-v4-flash-free
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Display name</Label>
                 <Input defaultValue="Concierge Assistant" />
               </div>
               <div className="space-y-2">
-                <Label className="flex justify-between">Temperature <span className="text-muted-foreground tabular-nums">{temp[0].toFixed(2)}</span></Label>
+                <Label className="flex justify-between">
+                  Temperature{" "}
+                  <span className="text-muted-foreground tabular-nums">{temp[0].toFixed(2)}</span>
+                </Label>
                 <Slider value={temp} onValueChange={setTemp} min={0} max={2} step={0.05} />
               </div>
               <div className="space-y-2">
-                <Label className="flex justify-between">Max tokens <span className="text-muted-foreground tabular-nums">{maxTok[0]}</span></Label>
+                <Label className="flex justify-between">
+                  Max tokens <span className="text-muted-foreground tabular-nums">{maxTok[0]}</span>
+                </Label>
                 <Slider value={maxTok} onValueChange={setMaxTok} min={256} max={4096} step={64} />
               </div>
             </div>
@@ -159,30 +152,37 @@ function ChatbotPage() {
             <div className="mt-6 space-y-3">
               <div>
                 <Label>System prompt preset</Label>
-                <p className="text-xs text-muted-foreground">Choose a tone preset or write your own.</p>
+                <p className="text-xs text-muted-foreground">
+                  Choose a tone preset or write your own.
+                </p>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {config?.presets && Object.entries(config.presets).map(([key, p]: [string, any]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handleSelectPreset(key)}
-                    className={`relative text-left rounded-lg border p-3 transition-colors ${
-                      preset === key
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    {preset === key && (
-                      <Check className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-primary" />
-                    )}
-                    <div className="text-sm font-medium">{p.label}</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{p.description}</div>
-                  </button>
-                ))}
+                {config?.presets &&
+                  Object.entries(config.presets).map(([key, p]: [string, any]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleSelectPreset(key)}
+                      className={`relative text-left rounded-lg border p-3 transition-colors ${
+                        preset === key
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {preset === key && (
+                        <Check className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-primary" />
+                      )}
+                      <div className="text-sm font-medium">{p.label}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                        {p.description}
+                      </div>
+                    </button>
+                  ))}
                 <button
                   type="button"
-                  onClick={() => { setPreset("custom"); }}
+                  onClick={() => {
+                    setPreset("custom");
+                  }}
                   className={`relative text-left rounded-lg border p-3 transition-colors ${
                     preset === "custom" || !preset
                       ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -193,7 +193,9 @@ function ChatbotPage() {
                     <Check className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-primary" />
                   )}
                   <div className="text-sm font-medium">Custom</div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">Write your own system prompt</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                    Write your own system prompt
+                  </div>
                 </button>
               </div>
             </div>
@@ -214,7 +216,9 @@ function ChatbotPage() {
 
           <section className="rounded-lg border border-border bg-card p-4 md:p-6">
             <h2 className="text-sm font-semibold">Telegram webhook</h2>
-            <p className="text-xs text-muted-foreground">Forward Telegram updates to your bot endpoint.</p>
+            <p className="text-xs text-muted-foreground">
+              Forward Telegram updates to your bot endpoint.
+            </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Bot token</Label>
@@ -246,6 +250,15 @@ function ChatbotPage() {
                     <span className="text-xs text-muted-foreground w-20 text-right">
                       {new Date(c.timestamp).toLocaleDateString()}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => deleteConversation.mutate(c.user)}
+                      disabled={deleteConversation.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
                   </div>
                 ))
               )}
@@ -278,7 +291,10 @@ function ChatbotPage() {
                 <p className="text-sm text-muted-foreground">No documents uploaded</p>
               ) : (
                 docs.documents.map((d: any) => (
-                  <li key={d.id} className="flex items-center gap-3 rounded-md border border-border p-2.5">
+                  <li
+                    key={d.id}
+                    className="flex items-center gap-3 rounded-md border border-border p-2.5"
+                  >
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{d.name}</div>

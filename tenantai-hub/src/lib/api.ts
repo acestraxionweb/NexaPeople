@@ -19,10 +19,7 @@ function getJwt(): string | null {
   }
 }
 
-async function request(
-  path: string,
-  options?: { method?: string; body?: unknown },
-) {
+async function request(path: string, options?: { method?: string; body?: unknown }) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -63,6 +60,8 @@ export const tenant = {
   logs: (limit?: number) => request(`/api/tenant/logs${limit ? `?limit=${limit}` : ""}`),
   knowledge: () => request("/api/tenant/knowledge"),
   conversations: () => request("/api/tenant/conversations"),
+  deleteConversation: (userId: string) =>
+    request(`/api/tenant/conversations/${userId}`, { method: "DELETE" }),
 };
 
 export async function uploadDocument(
@@ -92,13 +91,20 @@ export const admin = {
   audit: () => request("/api/admin/audit"),
   usage: () => request("/api/admin/usage"),
   usageBreakdown: () => request("/api/admin/usage/breakdown"),
-  provision: (data: { companyName: string; telegramBotToken: string; plan?: string; adminEmail?: string }) =>
-    request("/api/admin/provision", { method: "POST", body: data }),
-  updateTenant: (id: string, data: {
-    companyName?: string;
+  provision: (data: {
+    companyName: string;
+    telegramBotToken: string;
+    plan?: string;
     adminEmail?: string;
-    botToken?: string;
-    litellmVirtualKey?: string;
-    blockOldKey?: boolean;
-  }) => request(`/api/admin/tenants/${id}`, { method: "PUT", body: data }),
+  }) => request("/api/admin/provision", { method: "POST", body: data }),
+  updateTenant: (
+    id: string,
+    data: {
+      companyName?: string;
+      adminEmail?: string;
+      botToken?: string;
+      litellmVirtualKey?: string;
+      blockOldKey?: boolean;
+    },
+  ) => request(`/api/admin/tenants/${id}`, { method: "PUT", body: data }),
 };

@@ -60,8 +60,6 @@ export const tenant = {
   logs: (limit?: number) => request(`/api/tenant/logs${limit ? `?limit=${limit}` : ""}`),
   knowledge: () => request("/api/tenant/knowledge"),
   conversations: () => request("/api/tenant/conversations"),
-  deleteConversation: (userId: string) =>
-    request(`/api/tenant/conversations/${userId}`, { method: "DELETE" }),
 };
 
 export async function uploadDocument(

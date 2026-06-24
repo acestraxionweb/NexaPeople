@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,11 +48,6 @@ function ChatbotPage() {
     }
   };
 
-  const { data: convos } = useQuery({
-    queryKey: ["chatbot-conversations"],
-    queryFn: () => tenant.conversations(),
-  });
-
   const { data: docs, isLoading: docsLoading } = useQuery({
     queryKey: ["chatbot-knowledge"],
     queryFn: () => tenant.knowledge(),
@@ -96,15 +91,6 @@ function ChatbotPage() {
     }
   };
 
-  const deleteConversation = useMutation({
-    mutationFn: (userId: string) => tenant.deleteConversation(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chatbot-conversations"] });
-      toast.success("Conversation deleted");
-    },
-    onError: (e: any) => toast.error(e.message || "Delete failed"),
-  });
-
   return (
     <DashboardLayout
       title="Chatbot Configuration"
@@ -124,12 +110,6 @@ function ChatbotPage() {
             <p className="text-xs text-muted-foreground">Define how your bot responds.</p>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Model</Label>
-                <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md border border-border">
-                  deepseek-v4-flash-free
-                </div>
-              </div>
               <div className="space-y-2">
                 <Label>Display name</Label>
                 <Input defaultValue="Concierge Assistant" />
@@ -228,40 +208,6 @@ function ChatbotPage() {
                 <Label>Webhook URL</Label>
                 <Input defaultValue={config?.telegramWebhook ?? ""} />
               </div>
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-border bg-card p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold">Recent conversations</h2>
-                <p className="text-xs text-muted-foreground">Cross-channel chat history</p>
-              </div>
-            </div>
-            <div className="mt-4 divide-y divide-border">
-              {!convos?.conversations?.length ? (
-                <p className="py-3 text-sm text-muted-foreground">No conversations yet</p>
-              ) : (
-                convos.conversations.map((c: any) => (
-                  <div key={c.id} className="py-3 flex items-center gap-4 text-sm">
-                    <span className="font-medium w-24 truncate">{c.user}</span>
-                    <span className="flex-1 truncate text-muted-foreground">{c.lastMessage}</span>
-                    <span className="text-xs text-muted-foreground">{c.messages} msgs</span>
-                    <span className="text-xs text-muted-foreground w-20 text-right">
-                      {new Date(c.timestamp).toLocaleDateString()}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() => deleteConversation.mutate(c.user)}
-                      disabled={deleteConversation.isPending}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
-                ))
-              )}
             </div>
           </section>
         </div>

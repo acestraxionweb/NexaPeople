@@ -336,20 +336,6 @@ def tenant_conversations(tenant: Tenant = Depends(_get_tenant_combined)):
     }
 
 
-@router.delete("/tenant/conversations/{user_id}")
-def delete_conversation(user_id: str, tenant: Tenant = Depends(_get_tenant_combined)):
-    db = SessionLocal()
-    try:
-        db.execute(
-            text("DELETE FROM concierge.memories WHERE tenant_id = :tid AND user_id = :uid"),
-            {"tid": str(tenant.id), "uid": user_id},
-        )
-        db.commit()
-        return {"ok": True}
-    finally:
-        db.close()
-
-
 # --- Admin endpoints ---
 
 

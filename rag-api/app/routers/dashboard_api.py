@@ -266,13 +266,14 @@ def tenant_keys(tenant: Tenant = Depends(_get_tenant_combined)):
 @router.get("/tenant/logs")
 def tenant_logs(tenant: Tenant = Depends(_get_tenant_combined), limit: int = 50):
     logs = _tenant_logs(tenant, days_back=7)
+    model_alias = (tenant.chatbot_config or {}).get("modelAlias", "") or ""
     return {
         "logs": [
             {
                 "timestamp": e.get("startTime", ""),
                 "actor": e.get("user", ""),
                 "action": e.get("call_type", "chat.completion"),
-                "resource": e.get("model", "unknown"),
+                "resource": model_alias or e.get("model", "unknown"),
                 "status": e.get("status", 200),
                 "latency": f'{e.get("request_duration_ms", 0):.0f}ms',
                 "tokens": e.get("total_tokens", 0),

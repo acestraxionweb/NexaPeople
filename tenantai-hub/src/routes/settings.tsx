@@ -5,7 +5,6 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { tenant } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -67,33 +66,6 @@ function SettingsPage() {
             <div className="space-y-2">
               <Label>Contact email</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled />
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-border bg-card p-4 md:p-6">
-          <h2 className="text-sm font-semibold">Security</h2>
-          <div className="mt-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Require SSO</div>
-                <div className="text-xs text-muted-foreground">Enforce SAML/OAuth for all members</div>
-              </div>
-              <Switch checked={ws?.sso ?? false} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Two-factor authentication</div>
-                <div className="text-xs text-muted-foreground">Required for admins</div>
-              </div>
-              <Switch defaultChecked={ws?.twoFactor ?? false} />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">IP allowlist</div>
-                <div className="text-xs text-muted-foreground">Restrict API access by IP</div>
-              </div>
-              <Switch checked={ws?.ipAllowlist ?? false} />
             </div>
           </div>
         </section>

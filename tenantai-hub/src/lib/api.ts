@@ -94,4 +94,11 @@ export const admin = {
   usageBreakdown: () => request("/api/admin/usage/breakdown"),
   provision: (data: { companyName: string; telegramBotToken: string; plan?: string; adminEmail?: string }) =>
     request("/api/admin/provision", { method: "POST", body: data }),
+  updateTenant: (id: string, data: {
+    companyName?: string;
+    adminEmail?: string;
+    botToken?: string;
+    litellmVirtualKey?: string;
+    blockOldKey?: boolean;
+  }) => request(`/api/admin/tenants/${id}`, { method: "PUT", body: data }),
 };

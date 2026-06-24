@@ -16,6 +16,18 @@ def _litellm_get(path: str) -> dict | list:
         return resp.json()
 
 
+def _litellm_post(path: str, payload: dict) -> dict | list:
+    with httpx.Client() as client:
+        resp = client.post(
+            f"{settings.litellm_api_url}{path}",
+            json=payload,
+            headers={"Authorization": f"Bearer {settings.litellm_master_key}"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
 def key_hash(virtual_key: str) -> str:
     return hashlib.sha256(virtual_key.encode()).hexdigest()
 
@@ -46,6 +58,14 @@ def key_info(virtual_key: str):
 
 def model_info():
     return _litellm_get("/model/info")
+
+
+def block_key(virtual_key: str) -> bool:
+    try:
+        _litellm_post("/key/block", {"key": virtual_key})
+        return True
+    except Exception:
+        return False
 
 
 def generate_key(tenant_namespace: str, max_budget: float = 100.0) -> str | None:

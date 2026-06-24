@@ -9,7 +9,7 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import SessionLocal
 from app.litellm_admin_service import key_hash, key_info, spend_keys, spend_logs, global_spend
-from app.models import Tenant
+from app.models import Tenant, TenantUser
 
 router = APIRouter(prefix="/api")
 
@@ -343,6 +343,14 @@ def admin_tenants(_admin: dict = Depends(_require_admin)):
     db = SessionLocal()
     try:
         tenants = db.query(Tenant).all()
+
+        admin_emails = {}
+        admin_users = db.query(TenantUser).filter(
+            TenantUser.role == "tenant",
+        ).all()
+        for au in admin_users:
+            if au.tenant_id:
+                admin_emails[str(au.tenant_id)] = au.email
     finally:
         db.close()
 
@@ -374,6 +382,16 @@ def admin_tenants(_admin: dict = Depends(_require_admin)):
     result = []
     for t in tenants:
         u = by_tenant.get(str(t.id), {"requests": 0, "tokens": 0, "cost": 0.0, "users": set()})
+
+        llm_status = "active"
+        if t.litellm_virtual_key:
+            try:
+                ki = key_info(t.litellm_virtual_key)
+                if ki.get("blocked"):
+                    llm_status = "revoked"
+            except Exception:
+                pass
+
         result.append({
             "id": str(t.id),
             "companyName": t.company_name,
@@ -384,6 +402,9 @@ def admin_tenants(_admin: dict = Depends(_require_admin)):
             "tokens": u["tokens"],
             "cost": round(u["cost"], 6),
             "created": t.created_at.strftime("%Y-%m-%d") if t.created_at else "N/A",
+            "telegramBotToken": t.telegram_bot_token,
+            "litellmKeyStatus": llm_status,
+            "adminEmail": admin_emails.get(str(t.id), ""),
         })
     return {"tenants": result}
 

@@ -1,0 +1,58 @@
+@startuml
+title End-to-End Message Flow — Telegram User → AI Reply
+
+actor "Telegram User" as user
+participant "Telegram Bot" as bot
+participant "RAG API\n/ webhook/telegram" as api
+participant "Tenant Service" as tenant_svc
+participant "Embedding\nService" as embed
+participant "Pinecone" as pine
+participant "Memory\nService" as mem
+participant "LiteLLM" as litellm
+participant "Zen API" as zen
+
+user -> bot: Sends text message
+bot -> api: POST /webhook/telegram\n{bot_token, message, user_id}
+
+group Rate Limiting
+  api -> api: Check token bucket (5 req / 10s)
+  alt Rate limited
+    api --> bot: HTTP 429
+    bot --> user: "Too many requests"
+  end
+end
+
+api -> tenant_svc: get_tenant(bot_token)
+tenant_svc --> api: Tenant (or None)
+
+alt Tenant not found / inactive
+  api --> bot: HTTP 404
+  bot --> user: "Something went wrong"
+end
+
+api -> embed: embed_texts([message])
+embed --> api: query_vector [384d]
+
+api -> pine: query_vectors(query_vec, namespace, top_k=5)
+pine --> api: Top-5 relevant doc chunks
+
+api -> mem: get_memories(tenant_id, user_id)
+mem --> api: Last 3 conversation turns
+
+api -> api: _build_system_prompt(company, context, history, custom_prompt)
+
+api -> litellm: POST /chat/completions\n{virtual_key, model, messages}
+
+litellm -> zen: Forward to upstream LLM
+zen --> litellm: LLM reply
+litellm --> api: Chat completion response
+
+api -> api: sanitize_reply(reply)
+
+api -> mem: Background: add_conversation_turn()
+
+api --> bot: WebhookResponse {reply, tenant, company}
+bot -> bot: _sanitize_reply() (markdown → HTML)
+bot --> user: Reply text with HTML
+
+@enduml

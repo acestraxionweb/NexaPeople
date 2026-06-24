@@ -1,0 +1,65 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Component Diagram — RAG API (FastAPI)
+
+Container_Boundary(rag_api, "RAG API") {
+  Boundary(entry, "App Core") {
+    Component(main, "main.py", "FastAPI app, CORS, lifespan")
+    Component(config, "config.py", "pydantic-settings")
+    Component(database, "database.py", "SQLAlchemy engine + session")
+    Component(models, "models.py", "ORM: Tenant, Memory, TenantUser")
+    Component(migrate, "migrate.py", "Schema migrations")
+    Component(seed, "seed.py", "Seed admin / default tenant")
+    Component(seed_ll, "seed_litellm.py", "Generate LiteLLM keys")
+  }
+
+  Boundary(routers, "API Routers") {
+    Component(auth_router, "routers/auth.py", "Google OAuth + JWT")
+    Component(telegram_router, "routers/telegram.py", "Chat endpoint, rate limiting")
+    Component(telegram_wh, "routers/telegram_webhook.py", "Webhook endpoint")
+    Component(docs_router, "routers/documents.py", "PDF upload / ingest")
+    Component(dash_router, "routers/dashboard_api.py", "Tenant + admin APIs")
+    Component(admin_prov, "routers/admin_provision.py", "Provision new tenants")
+  }
+
+  Boundary(svcs, "Services") {
+    Component(embed, "services/embedding_service.py", "fastembed text embeddings (384d)")
+    Component(pine, "services/pinecone_service.py", "Vector query / upsert")
+    Component(ingest, "services/ingestion_service.py", "PDF → chunk → embed → upsert")
+    Component(memory, "services/memory_service.py", "User conversation memory (3 turns)")
+    Component(tenant_svc, "services/tenant_service.py", "Tenant lookup by bot token")
+    Component(sanitize, "services/sanitize.py", "Strip HTML / markdown → Telegram-safe")
+    Component(llm_svc, "litellm_service.py", "Chat completion via LiteLLM")
+    Component(llm_admin, "litellm_admin_service.py", "LiteLLM key / spend mgmt")
+  }
+}
+
+System_Ext(postgres, "PostgreSQL (Main)")
+System_Ext(pinecone_db, "Pinecone")
+System_Ext(litellm_proxy, "LiteLLM Proxy")
+
+Rel(telegram_router, embed, "embed user query", "Uses")
+Rel(telegram_router, pine, "query similar docs", "Uses")
+Rel(telegram_router, memory, "get/add conversation turn", "Uses")
+Rel(telegram_router, tenant_svc, "lookup tenant", "Uses")
+Rel(telegram_router, llm_svc, "chat completion", "Uses")
+Rel(telegram_router, sanitize, "sanitize reply", "Uses")
+Rel(docs_router, ingest, "process uploaded PDF", "Uses")
+Rel(ingest, embed, "embed chunks", "Uses")
+Rel(ingest, pine, "upsert vectors", "Uses")
+Rel(dash_router, llm_admin, "spend / key info", "Uses")
+Rel(dash_router, models, "CRUD tenant/users", "Uses")
+Rel(auth_router, models, "find/create user", "Uses")
+Rel(admin_prov, llm_admin, "generate key", "Uses")
+Rel(admin_prov, models, "create tenant", "Uses")
+
+Rel(embed, pinecone_db, "store/query vectors", "HTTPS")
+Rel(pine, pinecone_db, "store/query vectors", "HTTPS")
+Rel(llm_svc, litellm_proxy, "POST /chat/completions", "HTTP")
+Rel(llm_admin, litellm_proxy, "key mgmt / spend queries", "HTTP")
+Rel(database, postgres, "TCP 5432", "SQLAlchemy")
+
+@enduml

@@ -1,0 +1,20 @@
+@startuml
+title Tenant Lifecycle State Machine
+
+[*] --> provisioning : Admin creates tenant
+provisioning --> active : Key generated,\nnamespace allocated
+active --> suspended : Payment fail /\nadmin action
+suspended --> active : Payment resolved
+active --> deleted : Admin deletes tenant
+suspended --> deleted : Admin deletes tenant
+
+state provisioning : [entry] generate LiteLLM virtual key\n[entry] create Pinecone namespace\n[entry] assign Telegram bot token
+state active : Can receive messages,\nrespond to queries\n[do] RAG + memory + LLM
+state suspended : Bot returns\noffline message\n[do] Block LiteLLM key
+state deleted : All data removed\n(Pinecone namespace,\nmemories, LiteLLM key\ncleaned up)
+
+note right of provisioning : /api/admin/provision
+note right of suspended : litellm_admin_service.block_key()
+note right of deleted : Tenant record may be\nretained or soft-deleted
+
+@enduml

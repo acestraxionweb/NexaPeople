@@ -1,0 +1,48 @@
+@startuml
+title Google OAuth → JWT → Dashboard Session
+
+actor "Dashboard User" as user
+participant "Browser\n(Dashboard)" as browser
+participant "RAG API\n/auth/google/*" as api
+participant "Google OAuth" as google
+participant "PostgreSQL" as db
+
+user -> browser: Clicks "Sign In with Google"
+browser -> api: GET /auth/google/login?frontend_url=...
+api --> browser: 302 Redirect to\naccounts.google.com/...
+browser -> google: GET accounts.google.com/o/oauth2/v2/auth\n?client_id&redirect_uri&scope
+google --> browser: User authenticates / consents
+browser -> api: GET /auth/google/callback?code=...&state=...
+
+group Token Exchange
+  api -> google: POST /token\n{code, client_id, client_secret, redirect_uri}
+  google --> api: {access_token, id_token}
+  api -> google: GET /userinfo\nAuthorization: Bearer {access_token}
+  google --> api: {id, email, name, picture}
+end
+
+api -> db: Query TenantUser by email
+db --> api: User record (or None)
+
+alt Existing user found
+  api -> db: UPDATE google_sub, name, last_login
+  db --> api: OK
+else Admin first login (email in GOOGLE_ADMIN_EMAILS)
+  api -> db: INSERT TenantUser (email, name, role='admin')
+  db --> api: OK
+else Unauthorized email
+  api --> browser: 302 Redirect /login?error=not_authorized
+  browser -> user: "Not authorized" page
+end
+
+api -> api: create_jwt(user) → JWT token
+api --> browser: 302 Redirect /login?token={jwt}
+browser -> browser: Store JWT in memory / local storage
+browser -> api: GET /auth/me\nAuthorization: Bearer {jwt}
+api -> api: decode_jwt() → {sub, email, role, tenant_id}
+api -> db: Query TenantUser + Tenant name
+db --> api: CurrentUser
+api --> browser: CurrentUser {id, email, role, tenant_id, tenant_name}
+browser -> user: Dashboard rendered
+
+@enduml

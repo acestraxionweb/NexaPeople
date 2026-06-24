@@ -1,0 +1,59 @@
+@startuml
+title ER Diagram — PostgreSQL Schema (concierge schema)
+
+!define table(x) class x << (T,#FFEEBB) >>
+
+table(Tenant) {
+  + id: UUID [PK]
+  + company_name: VARCHAR
+  + telegram_bot_token: VARCHAR [UNIQUE]
+  + pinecone_namespace: VARCHAR
+  + litellm_virtual_key: VARCHAR
+  + status: VARCHAR (default: 'active')
+  + plan: VARCHAR (default: 'starter')
+  + created_at: TIMESTAMPTZ
+  + chatbot_config: JSONB
+}
+
+table(Memory) {
+  + id: UUID [PK]
+  + tenant_id: UUID [FK → Tenant.id]
+  + user_id: VARCHAR [INDEX]
+  + type: VARCHAR (default: 'fact')
+  + fact: TEXT
+  + user_msg: TEXT
+  + bot_reply: TEXT
+  + created_at: TIMESTAMPTZ
+}
+
+table(TenantUser) {
+  + id: UUID [PK]
+  + email: VARCHAR [UNIQUE, INDEX]
+  + name: VARCHAR
+  + google_sub: VARCHAR [UNIQUE]
+  + tenant_id: UUID [FK → Tenant.id, nullable]
+  + role: VARCHAR (default: 'tenant')
+  + created_at: TIMESTAMPTZ
+  + last_login: TIMESTAMPTZ
+}
+
+Tenant ||--o{ Memory : "ON DELETE CASCADE"
+Tenant ||--o{ TenantUser : "ON DELETE SET NULL"
+
+note top of Tenant
+  Schema: concierge
+  Stores per-tenant configuration
+  Pinecone namespace + LiteLLM virtual key
+end note
+
+note bottom of Memory
+  type = 'fact' → LLM-extracted facts
+  type = 'message' → conversation turns (max 3 per user)
+end note
+
+note bottom of TenantUser
+  role: 'admin' or 'tenant'
+  tenant_id is NULL for super admins
+end note
+
+@enduml

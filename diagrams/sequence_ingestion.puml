@@ -1,0 +1,53 @@
+@startuml
+title Document Ingestion — PDF Upload → Pinecone
+
+actor "Tenant Admin" as admin
+participant "Dashboard" as dash
+participant "RAG API\n/documents/upload" as api
+participant "Ingestion\nService" as ingest
+participant "Embedding\nService" as embed
+participant "Pinecone\nService" as pine
+participant "Pinecone\n(Vector DB)" as pinecone
+
+admin -> dash: Upload PDF file
+dash -> api: POST /documents/upload\n{file, Authorization: Bearer JWT}
+
+api -> api: _resolve_tenant(authorization)
+alt JWT auth
+  api -> api: Decode JWT → tenant_id
+  api -> db: Query Tenant by id
+else Bot token auth
+  api -> api: Lookup by bot_token
+end
+
+alt No valid tenant
+  api --> dash: HTTP 401/403/404
+end
+
+api -> ingest: process_pdf(file, namespace)
+ingest -> ingest: PdfReader → extract text per page
+
+group Chunking
+  ingest -> ingest: chunk_text(full_text,\nchunk_size=500,\noverlap=100)
+  note right: Word-level chunks with overlap
+end
+
+ingest -> embed: embed_texts(chunks)
+embed -> embed: fastembed\nBAAI/bge-small-en-v1.5 (384d)
+embed --> ingest: list[list[float]]
+
+group Prepare vectors
+  ingest -> ingest: Create {id, values, metadata} for each chunk
+  note right: metadata includes text + chunk_index
+end
+
+ingest -> pine: upsert_vectors(vectors, namespace)
+pine -> pinecone: index.upsert(namespace=namespace)
+pinecone --> pine: OK
+pine --> ingest: Done
+
+ingest --> api: chunk_count
+api --> dash: {tenant, company, filename, chunks_uploaded}
+dash -> admin: Ingestion complete: N chunks
+
+@enduml

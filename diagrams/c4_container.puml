@@ -1,0 +1,46 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container Diagram — AI Concierge
+
+Person(end_user, "Telegram User")
+Person(admin_user, "Dashboard Admin")
+Person(super_admin, "Super Admin")
+
+System_Boundary(docker, "Docker Compose (8 containers)") {
+  ContainerDb(db, "PostgreSQL (Main)", "PostgreSQL 16", "Stores tenants, tenant_users, memories")
+  ContainerDb(litellm_db, "PostgreSQL (LiteLLM)", "PostgreSQL 16", "Stores spend logs, virtual keys, configs")
+
+  Container(litellm, "LiteLLM Proxy", "ghcr.io/berriai/litellm", "LLM routing with per-tenant virtual keys, cost tracking, rate limiting")
+  Container(rag_api, "RAG API", "FastAPI (Python)", "Business logic: RAG ingestion, chat, auth, admin APIs")
+  Container(telegram_a, "Telegram Bot A", "python-telegram-bot", "Long-polling bot instance A")
+  Container(telegram_b, "Telegram Bot B", "python-telegram-bot", "Long-polling bot instance B")
+  Container(telegram_c, "Telegram Bot C", "python-telegram-bot", "Long-polling bot instance C")
+  Container(dashboard, "Dashboard", "TanStack Start (React/TypeScript)", "SPA: workspace config, docs, usage, admin")
+}
+
+System_Ext(telegram_api, "Telegram API", "api.telegram.org")
+System_Ext(google, "Google OAuth", "accounts.google.com")
+System_Ext(pinecone_ext, "Pinecone", "Vector DB")
+System_Ext(zen, "Zen API", "LLM provider")
+
+Rel(end_user, telegram_api, "Messages", "HTTPS")
+Rel(telegram_api, telegram_a, "Polling", "HTTPS")
+Rel(telegram_api, telegram_b, "Polling", "HTTPS")
+Rel(telegram_api, telegram_c, "Polling", "HTTPS")
+Rel(telegram_a, rag_api, "POST /webhook/telegram", "HTTP")
+Rel(telegram_b, rag_api, "POST /webhook/telegram", "HTTP")
+Rel(telegram_c, rag_api, "POST /webhook/telegram", "HTTP")
+Rel(admin_user, dashboard, "HTTPS")
+Rel(super_admin, dashboard, "HTTPS")
+Rel(dashboard, rag_api, "REST API", "HTTP")
+Rel(rag_api, db, "READ/WRITE", "TCP 5432")
+Rel(rag_api, litellm, "POST /chat/completions", "HTTP")
+Rel(rag_api, pinecone_ext, "Query/Upsert", "HTTPS")
+Rel(rag_api, telegram_api, "Send reply", "HTTPS")
+Rel(litellm, litellm_db, "READ/WRITE", "TCP 5432")
+Rel(litellm, zen, "Route LLM calls", "HTTPS")
+
+@enduml

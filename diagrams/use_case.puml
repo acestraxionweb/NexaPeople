@@ -1,0 +1,37 @@
+@startuml
+title Use Case Diagram — AI Concierge Platform
+
+left to right direction
+
+actor "Telegram User" as tu
+actor "Tenant Admin" as ta
+actor "Super Admin" as sa
+
+rectangle "AI Concierge" {
+  usecase "Ask Questions\nvia Chat" as uc_chat
+  usecase "Receive Answers\nfrom Knowledge Base" as uc_answer
+  usecase "Configure\nChatbot Settings" as uc_config
+  usecase "Upload\nDocuments" as uc_upload
+  usecase "View Usage\n& Costs" as uc_usage
+  usecase "Manage\nAPI Keys" as uc_keys
+  usecase "Manage\nTenant Users" as uc_users
+  usecase "Provision\nNew Tenants" as uc_prov
+  usecase "View Global\nSpend & Logs" as uc_global
+  usecase "View System\nHealth" as uc_health
+}
+
+tu --> uc_chat
+tu --> uc_answer
+
+ta --> uc_config
+ta --> uc_upload
+ta --> uc_usage
+ta --> uc_keys
+ta --> uc_users
+
+sa --> uc_prov
+sa --> uc_global
+sa --> uc_health
+sa --> uc_usage
+
+@enduml

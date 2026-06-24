@@ -1,0 +1,37 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title System Context — NexaPeople AI Concierge
+
+Person(end_user, "Telegram User", "Sends messages to the concierge bot")
+Person(admin_user, "Dashboard Admin", "Manages tenant workspace, config, and documents")
+Person(super_admin, "Super Admin", "Provisions tenants and views global usage")
+
+System_Boundary(nexapeople, "NexaPeople Platform") {
+  System(rag_api, "AI Concierge API", "FastAPI backend — RAG, memory, auth, tenant mgmt")
+  System(dashboard, "Dashboard", "TanStack Start SPA — workspace & admin UI")
+  System(telegram_bot, "Telegram Bots", "Long-polling bot instances (3x parallel)")
+}
+
+System_Ext(telegram, "Telegram API", "api.telegram.org — message delivery")
+System_Ext(google, "Google OAuth", "Sign-In with Google")
+System_Ext(pinecone, "Pinecone", "Managed vector DB — per-tenant namespaces")
+System_Ext(zen_api, "Zen API", "Upstream LLM provider (OpenAI-compatible)")
+System_Ext(litellm, "LiteLLM Proxy", "LLM routing, virtual keys, cost tracking")
+
+Rel(end_user, telegram, "Sends chat message", "HTTPS")
+Rel(telegram, telegram_bot, "Delivers message via webhook/polling", "HTTPS")
+Rel(telegram_bot, rag_api, "Forwards message", "HTTP")
+Rel(dashboard, rag_api, "REST API calls", "HTTP")
+Rel(admin_user, dashboard, "Uses dashboard", "HTTPS")
+Rel(super_admin, dashboard, "Manages tenants", "HTTPS")
+Rel(rag_api, telegram, "Sends reply", "HTTPS")
+Rel(rag_api, pinecone, "Query/upsert vectors", "HTTPS")
+Rel(rag_api, litellm, "Chat completion request", "HTTP")
+Rel(litellm, zen_api, "Routes to upstream LLM", "HTTPS")
+Rel(dashboard, google, "OAuth login", "HTTPS")
+Rel(rag_api, google, "Token verification", "HTTPS")
+
+@enduml

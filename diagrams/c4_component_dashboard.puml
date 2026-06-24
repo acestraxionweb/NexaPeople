@@ -1,0 +1,45 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Component Diagram — Dashboard (TanStack Start SPA)
+
+Container_Boundary(dashboard, "Dashboard") {
+  Boundary(core, "App Core") {
+    Component(router, "router.tsx", "TanStack Router (file-based routing)")
+    Component(auth_ctx, "lib/AuthContext", "JWT token mgmt, login state")
+    Component(api_client, "lib/api-client", "HTTP client calling rag-api")
+  }
+
+  Boundary(pages, "Pages (src/routes/)") {
+    Component(login, "login.tsx", "Google Sign-In redirect")
+    Component(workspace, "index.tsx (Home)", "Workspace overview, company info")
+    Component(chatbot, "chatbot.tsx", "Chatbot config: prompt, model, temp, tokens")
+    Component(usage, "usage.tsx", "LLM usage & cost charts (Recharts)")
+    Component(logs, "logs.tsx", "LLM request/response logs")
+    Component(api_keys, "api-keys.tsx", "API keys management")
+    Component(settings, "settings.tsx", "Tenant settings")
+    Component(admin_tenants, "admin.tenants.tsx", "All tenants list + provision")
+    Component(admin_audit, "admin.audit.tsx", "Audit logs")
+    Component(admin_health, "admin.health.tsx", "System health checks")
+  }
+}
+
+System_Ext(rag_api, "RAG API")
+System_Ext(google, "Google OAuth")
+
+Rel(login, google, "Redirect user for auth", "HTTPS")
+Rel(login, rag_api, "Receive JWT via callback", "HTTP")
+Rel(auth_ctx, api_client, "Provide auth header", "")
+Rel(workspace, api_client, "GET/PUT /api/tenant/workspace", "REST")
+Rel(chatbot, api_client, "GET/PUT /api/tenant/chatbot", "REST")
+Rel(usage, api_client, "GET /api/admin/spend, GET /api/spend/logs", "REST")
+Rel(logs, api_client, "GET /api/admin/spend/logs", "REST")
+Rel(api_keys, api_client, "GET /api/tenant/api-keys", "REST")
+Rel(admin_tenants, api_client, "GET /api/admin/tenants, POST /api/admin/provision", "REST")
+Rel(admin_audit, api_client, "GET /api/admin/audit-logs", "REST")
+Rel(admin_health, api_client, "GET /health", "REST")
+Rel(api_client, rag_api, "All API calls", "HTTP")
+
+@enduml

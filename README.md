@@ -34,6 +34,8 @@ Multi-tenant AI concierge platform. Each client gets an isolated Telegram bot wi
 | Dashboard | TanStack Start, shadcn/ui, Recharts |
 | Auth | Google Sign-In + JWT |
 
+> See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for a full breakdown of all services, backend modules, dashboard pages, and external dependencies.
+
 ## Quick Start
 
 ```bash

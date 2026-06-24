@@ -4,21 +4,7 @@ Multi-tenant AI concierge platform. Each client gets an isolated Telegram bot wi
 
 ## Architecture
 
-```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│ Telegram │────▶│  rag-api │────▶│ Pinecone │     │  LiteLLM │
-│  Bots    │     │ (FastAPI)│     │  Vector  │     │   Proxy  │
-│(polling) │     │          │     │    DB    │     │ (billing)│
-└──────────┘     ├──────────┤     └──────────┘     └──────────┘
-                 │PostgreSQL│
-┌──────────┐     │(tenants, │     ┌──────────┐
-│Dashboard │────▶│memories) │     │   Zen    │
-│ TanStack │     └──────────┘     │   API    │
-│  Start   │                      │   (LLM)  │
-└──────────┘                      └──────────┘
-```
-
-**Message flow:** User → Telegram → rag-api → tenant lookup → Pinecone query (per-tenant namespace) + memory → system prompt → LiteLLM (per-tenant key) → Zen API → sanitize → reply → extract fact → save memory
+![Architecture Overview](diagrams/c4%20context.png)
 
 ## Stack
 
